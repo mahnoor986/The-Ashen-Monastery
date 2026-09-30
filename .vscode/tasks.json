@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "env": {
+            "PATH": "C:\\Users\\NAT\\Documents\\w64devkit\\bin;${env:PATH}"
+        }
+    },
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "make RAYLIB_PATH=C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "make run RAYLIB_PATH=C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "release",
+            "type": "shell",
+            "command": "make release RAYLIB_PATH=C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "make clean RAYLIB_PATH=C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64",
+            "problemMatcher": []
+        }
+    ]
+}
