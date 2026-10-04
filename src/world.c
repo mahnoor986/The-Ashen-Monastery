@@ -290,6 +290,8 @@ bool World_Load(World *w, const char *path, int expectedChests)
         bool floorAlongX = !World_IsSolid(w, e.x + 1, e.z) || !World_IsSolid(w, e.x - 1, e.z);
         w->exitYaw[d] = floorAlongX ? PI * 0.5f : 0.0f;
     }
+    for (d = 0; d < w->chestCount; d++)
+        w->chestYaw[d] = OpenYaw(w, w->chests[d].x, w->chests[d].z);
     w->startYaw = OpenYaw(w, (int)w->start.x, (int)w->start.z);
     for (d = 0; d < w->spawnCount; d++)
         w->spawns[d].yaw = OpenYaw(w, (int)w->spawns[d].pos.x, (int)w->spawns[d].pos.z);
@@ -448,7 +450,7 @@ static void BuildChunk(MeshBuilder *mb, const World *w, int cx, int cz)
 void World_BuildMeshes(World *w)
 {
     MeshBuilder mb;
-    int cx, cz, k;
+    int cx, cz;
     int ncx = (w->w + CHUNK_SIZE - 1) / CHUNK_SIZE, ncz = (w->h + CHUNK_SIZE - 1) / CHUNK_SIZE;
 
     w->torchCount = 0;
@@ -466,19 +468,11 @@ void World_BuildMeshes(World *w)
             w->chunks[w->chunkCount++] = m;
         }
     }
-
-    /* exit door: four stacked 1-block iron slabs (so the texture repeats per block), thin along local Z */
-    MB_Begin(&mb);
-    for (k = 0; k < (int)WALL_HEIGHT; k++)
-        MB_Box(&mb, (Vector3){ -0.49f, (float)k, -0.12f }, (Vector3){ 0.49f, k + 1.0f, 0.12f }, TILE_IRON_DOOR, WHITE);
-    w->doorMesh = MB_End(&mb);
 }
 
 void World_Unload(World *w)
 {
     int i;
     for (i = 0; i < w->chunkCount; i++) UnloadMesh(w->chunks[i]);
-    if (w->doorMesh.vertexCount > 0) UnloadMesh(w->doorMesh);
     w->chunkCount = 0;
-    w->doorMesh.vertexCount = 0;
 }

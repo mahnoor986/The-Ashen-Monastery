@@ -12,8 +12,34 @@
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;
+static Mesh     doorMesh, chestBody, chestLid, chestGold;   /* prop meshes */
 static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
            locLightColor, locEntityLight, locIsEntity, locEmissive;
+
+/* Exit door (4 stacked iron blocks, thin along local Z), chest body + lid (hinged at the back). */
+static void BuildProps(void)
+{
+    MeshBuilder mb;
+    int k;
+    MB_Begin(&mb);
+    for (k = 0; k < (int)WALL_HEIGHT; k++)
+        MB_Box(&mb, (Vector3){ -0.49f, (float)k, -0.12f }, (Vector3){ 0.49f, k + 1.0f, 0.12f }, TILE_IRON_DOOR, WHITE);
+    doorMesh = MB_End(&mb);
+
+    MB_Begin(&mb);
+    MB_Box(&mb, (Vector3){ -0.45f, 0.0f, -0.32f }, (Vector3){ 0.45f, 0.55f, 0.32f }, TILE_CHEST, WHITE);
+    MB_Box(&mb, (Vector3){ -0.47f, 0.0f, -0.34f }, (Vector3){ -0.39f, 0.57f, 0.34f }, TILE_IRON, WHITE);   /* iron corners */
+    MB_Box(&mb, (Vector3){ 0.39f, 0.0f, -0.34f }, (Vector3){ 0.47f, 0.57f, 0.34f }, TILE_IRON, WHITE);
+    chestBody = MB_End(&mb);
+
+    MB_Begin(&mb);            /* lid: hinge at the origin, extends forward (+Z) */
+    MB_Box(&mb, (Vector3){ -0.46f, 0.0f, 0.0f }, (Vector3){ 0.46f, 0.24f, 0.66f }, TILE_CHEST, WHITE);
+    chestLid = MB_End(&mb);
+
+    MB_Begin(&mb);            /* treasure inside an open chest */
+    MB_Box(&mb, (Vector3){ -0.36f, 0.40f, -0.24f }, (Vector3){ 0.36f, 0.56f, 0.24f }, TILE_FLAME, WHITE);
+    chestGold = MB_End(&mb);
+}
 
 void Render_Init(void)
 {
@@ -43,10 +69,15 @@ void Render_Init(void)
     worldMat = LoadMaterialDefault();
     worldMat.maps[MATERIAL_MAP_DIFFUSE].texture = Textures_Atlas();
     if (hasShader) worldMat.shader = shader;
+    BuildProps();
 }
 
 void Render_Shutdown(void)
 {
+    UnloadMesh(doorMesh);
+    UnloadMesh(chestBody);
+    UnloadMesh(chestLid);
+    UnloadMesh(chestGold);
     worldMat.maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ 0 };   /* owned by textures.c */
     worldMat.shader = (Shader){ 0 };                                  /* unloaded below */
     UnloadMaterial(worldMat);
@@ -91,7 +122,10 @@ void Render_UseWorldLight(void)
 
 void Render_UseEntityLight(Vector3 light)
 {
+    /* half-desaturate torch light on characters so steel and bone don't turn orange-pink */
+    float grey = (light.x + light.y + light.z) / 3.0f;
     if (!hasShader) return;
+    light = Vector3Lerp(light, (Vector3){ grey, grey, grey }, 0.45f);
     SetF(locIsEntity, 1.0f);
     SetV3(locEntityLight, light);
 }
@@ -115,7 +149,7 @@ void Render_DrawWorld(const World *w, float time)
             Matrix m = MatrixMultiply(MatrixRotateY(w->exitYaw[i]),
                                       MatrixTranslate(c.x, -w->doorSlide * WALL_HEIGHT, c.z));
             Render_UseEntityLight(World_LightAt(w, c));
-            DrawMesh(w->doorMesh, worldMat, m);
+            DrawMesh(doorMesh, worldMat, m);
         }
         Render_UseWorldLight();
     }
@@ -127,4 +161,20 @@ void Render_DrawWorld(const World *w, float time)
         DrawCube((Vector3){ p.x, p.y + 0.02f, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
         DrawCube((Vector3){ p.x, p.y + 0.0f, p.z }, 0.08f, 0.12f * f, 0.08f, (Color){ 255, 236, 150, 255 });
     }
+}
+
+void Render_DrawChest(Vector3 pos, float yaw, float lid, Vector3 light)
+{
+    Matrix base = MatrixMultiply(MatrixRotateY(yaw), MatrixTranslate(pos.x, pos.y, pos.z));
+    /* lid swings up around the back edge (local z = -0.33, top of the body) */
+    Matrix lidM = MatrixMultiply(MatrixMultiply(MatrixRotateX(-1.9f * lid), MatrixTranslate(0.0f, 0.55f, -0.33f)), base);
+    Render_UseEntityLight(light);
+    DrawMesh(chestBody, worldMat, base);
+    DrawMesh(chestLid, worldMat, lidM);
+    if (lid > 0.05f) {
+        Render_SetEmissive(true);
+        DrawMesh(chestGold, worldMat, base);
+        Render_SetEmissive(false);
+    }
+    Render_UseWorldLight();
 }

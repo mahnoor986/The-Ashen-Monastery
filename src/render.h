@@ -13,7 +13,7 @@ bool   Render_HasShader(void);
 Shader Render_Shader(void);         /* world shader (or raylib's default) for character materials */
 Material Render_WorldMaterial(void);
 
-/* Per-frame uniforms. `lightScale` dims the player light (e.g. death screen). */
+/* Per-frame uniforms: camera, fog, ambient, flicker and the player light for this wing. */
 void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, float time);
 /* Switch how the next DrawMesh calls are lit. */
 void Render_UseWorldLight(void);                 /* baked vertex light (world chunks) */
@@ -21,6 +21,8 @@ void Render_UseEntityLight(Vector3 light);       /* a character standing in this
 void Render_SetEmissive(bool on);                /* glowing: no lighting, only fog */
 
 void Render_DrawWorld(const World *w, float time);    /* call inside BeginMode3D */
+/* A treasure chest; `lid` 0 = closed .. 1 = open (an open chest glows gold inside). */
+void Render_DrawChest(Vector3 pos, float yaw, float lid, Vector3 light);
 float Render_Flicker(float time);
 
 #endif

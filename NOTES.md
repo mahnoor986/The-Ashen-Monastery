@@ -58,3 +58,25 @@ Decisions made while building, and things worth knowing.
 - Characters and doors have no baked light; the shader uses `entityLight` = the torch light
   sampled at their position (`isEntity` uniform).
 - Torch flames are drawn unlit with raylib's default shader, so they glow through the fog.
+
+## Phase 3 + 4 decisions (built together; they share the same files)
+- `input.c`: the game reads one `Input` struct per frame instead of the keyboard directly, so
+  `--autotest` can play wing 1 with scripted input: it opens all 3 chests, checks the door
+  opens and you can walk through it, kills a skeleton with two aim-assisted swings, dies to a
+  telegraphed attack and checks you rise again at the chest checkpoint.
+- Enemies never touch the player directly; they report hits/scares/bolts in `EnemyEvents`
+  and `game.c` applies damage, sound and camera shake.
+- A sword hit staggers skeletons/ghosts/witches (cancels their wind-up). The Queen doesn't flinch.
+- Ghosts in the dark take no damage; the first time your blade passes through one, a banner
+  explains "Ghosts can only be hurt in the light".
+- Chests face the open floor; the chest prompt accepts facing with either the body or the camera.
+- Every wing starts with full hearts. Restart wing (pause menu) reloads the wing from scratch.
+- Hex bolts are drawn as glowing cubes; arrow keys also turn the camera.
+- The virtual-screen texture is copied to the window with blending off (translucent UI would
+  otherwise leave the picture see-through), and screenshots drop the alpha channel.
+- Extra screenshots: `shots/enemies.png`, `hud.png`, `chest_open.png`, `death.png`, `victory.png`.
+- Audio roles -> files (all optional): swing `drawKnife1-3`, hit `impactPlate_medium_*`,
+  hurt `impactPunch_heavy_*`, chest `creak1-3`, treasure `handleCoins*`, door `doorOpen_*`,
+  footsteps `footstep00-09`, scare `scaryhighpitchedghost.wav`, moan `qubodup-GhostMoan01-05.wav`,
+  bolt `knifeSlice*` (pitched up), bolt shatter `impactGlass_light_*`, enemy death
+  `impactWood_heavy_*`, dash `cloth1-3`, menu `metalClick`, ambience `dungeon_ambient_1.ogg`.

@@ -1,4 +1,5 @@
-/* ui.h - fonts, text helpers and every 2D screen (menu, HUD, banners, pause, ...).
+/* ui.h - fonts, text helpers and every 2D screen: main menu, HUD (hearts, dash, treasures,
+ * chest prompt, boss bar), banners, pause, inventory, death and victory.
  * All coordinates are in the 1280x720 virtual screen. */
 #ifndef UI_H
 #define UI_H
@@ -14,7 +15,16 @@ void UI_Shutdown(void);
 void UI_Text(bool title, const char *text, float x, float y, float size, Color c);
 void UI_TextCentered(bool title, const char *text, float cx, float y, float size, Color c);
 
-void UI_DrawTitleCard(void);                /* placeholder menu (phase 6 adds the 3D background) */
+/* clickable menu rows (shared by drawing and the game's mouse handling) */
+Rectangle UI_MenuItemRect(int index, int count);
+Rectangle UI_PauseItemRect(int index, int count);
+
+void UI_DrawMenu(const struct Game *g);
 void UI_DrawHUD(const struct Game *g);
+void UI_DrawPause(const struct Game *g);
+void UI_DrawInventory(const struct Game *g);
+void UI_DrawDeath(const struct Game *g);
+void UI_DrawVictory(const struct Game *g);
+void UI_DrawFade(const struct Game *g);
 
 #endif

@@ -29,6 +29,7 @@ typedef struct {
     float   startYaw;                        /* player start facing */
 
     Cell  chests[MAX_CHESTS];    int chestCount;
+    float chestYaw[MAX_CHESTS];              /* chests face the open floor */
     Cell  exits[MAX_EXIT_CELLS]; int exitCount;
     float exitYaw[MAX_EXIT_CELLS];           /* door slab rotation (0 = slab faces +-Z) */
     bool  exitOpen;                          /* door no longer blocks */
@@ -38,7 +39,6 @@ typedef struct {
 
     Mesh  chunks[MAX_CHUNKS];    int chunkCount;
     int   vertexCount;                       /* total over all chunks (for the autotest summary) */
-    Mesh  doorMesh;                          /* one exit-door slab, drawn per exit cell */
 } World;
 
 /* Load + validate a wing file. Prints errors (file:line:col) to stdout and returns false on any error. */

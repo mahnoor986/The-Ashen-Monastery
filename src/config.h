@@ -114,6 +114,64 @@
 #define MAX_ENEMIES         64
 #define MAX_BOLTS           128
 
+/* -------------------------------------------------------------- enemies 2 */
+#define ENEMY_SIZE          0.6f        /* collision box of normal enemies */
+#define SKELETON_COOLDOWN   1.1f        /* pause after a melee attack */
+#define GHOST_REACH         1.2f
+#define GHOST_COOLDOWN      1.3f
+#define GHOST_FAINT_ALPHA   0.10f       /* how a ghost looks while out of the light */
+#define GHOST_LIGHT_NEEDED  0.22f       /* torch light level that reveals a ghost */
+#define GHOST_MOAN_RANGE    10.0f       /* ghosts moan now and then within this distance */
+#define WITCH_WINDUP        0.5f        /* telegraph before a bolt */
+#define QUEEN_SIGHT         14.0f
+#define QUEEN_REACH         2.1f
+#define QUEEN_SIZE          1.0f
+#define QUEEN_COOLDOWN      1.4f
+#define QUEEN_KNOCK_MUL     0.3f        /* the Queen barely flinches */
+#define BOLT_LIFE           6.0f
+#define BOLT_HIT_RADIUS     0.45f
+#define BOLT_HEIGHT         1.2f
+
+/* ------------------------------------------------------------------ feel */
+#define SHAKE_HIT           0.7f        /* camera shake amounts (0..1) */
+#define SHAKE_CHEST         0.35f
+#define SHAKE_DOOR          0.6f
+#define SHAKE_SCARE         0.9f
+#define SHAKE_DECAY         2.2f        /* per second */
+#define SHAKE_SIZE          0.12f       /* world units at shake 1.0 */
+#define HURT_FLASH_TIME     0.5f
+#define BANNER_TIME         3.2f        /* seconds a banner stays up */
+#define FADE_SPEED          1.4f        /* screen fade per second */
+#define RESPAWN_INVULN      2.0f        /* grace period after rising again */
+#define DOOR_OPEN_TIME      2.0f        /* seconds for the exit door to sink */
+#define CHEST_FACE_DEG      80.0f       /* how directly you must face a chest */
+#define CONTROLS_HINT_TIME  20.0f       /* seconds the controls hint shows in wing 1 */
+#define MAX_PARTICLES       256
+
+/* ----------------------------------------------------------------- audio */
+#define MASTER_VOLUME       0.9f
+#define AMBIENCE_FILE       "assets/audio/dungeon_ambient_1.ogg"
+#define AMBIENCE_VOLUME     0.35f
+#define FOOTSTEP_INTERVAL   0.4f        /* seconds between footsteps at full speed */
+
+/* ------------------------------------------------------------------ save */
+#define SAVE_FILE           "save.txt"  /* highest unlocked wing (1-5) */
+
+/* ------------------------------------------------------------ wing names */
+/* For the inventory (the in-game title comes from the first line of each wing file). */
+#define WING_NAME_TABLE { "The Gatehouse", "The Grand Ballroom", "The Moonlit Library", \
+                          "The Bone Chapel", "The Witch Queen's Throne Room" }
+
+/* ------------------------------------------------------------- treasures */
+/* Shown in the HUD list and the "You found ..." banner, in map order (top row first). */
+#define TREASURE_TABLE {                                                                             \
+    { "Silver Chalice", "Raven Brooch", "Iron Rosary" },                                             \
+    { "Cursed Locket", "Bloodstone Ring", "Masquerade Mask", "Golden Candelabrum" },                 \
+    { "Moonlit Grimoire", "Astrolabe of Bone", "Quill of the Damned", "Hourglass of Ash" },          \
+    { "Saint's Reliquary", "Skull Chalice", "Ossuary Key", "Black Censer", "Weeping Icon" },         \
+    { "Thorned Crown", "Witch Queen's Scepter", "Obsidian Heart", "Veil of Shadows", "Blackthorn Seal" }, \
+}
+
 /* ----------------------------------------------------------------- wings */
 #define WING_COUNT 5
 

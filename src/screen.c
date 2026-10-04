@@ -1,6 +1,7 @@
 /* screen.c - fixed-size virtual screen (see screen.h). */
 #include "screen.h"
 #include "config.h"
+#include "rlgl.h"
 
 static RenderTexture2D target;   /* the SCREEN_W x SCREEN_H virtual screen */
 
@@ -54,9 +55,15 @@ void Screen_End(void)
     EndTextureMode();
     BeginDrawing();
     ClearBackground(BLACK);
-    /* render textures are stored upside down, hence the negative source height */
+    /* Copy without blending: translucent UI leaves alpha < 1 in the texture, which must not
+     * make the final picture see-through. Render textures are stored upside down, hence the
+     * negative source height. */
+    rlDrawRenderBatchActive();
+    rlDisableColorBlend();
     DrawTexturePro(target.texture, (Rectangle){ 0, 0, SCREEN_W, -SCREEN_H }, DestRect(),
                    (Vector2){ 0, 0 }, 0.0f, WHITE);
+    rlDrawRenderBatchActive();
+    rlEnableColorBlend();
     EndDrawing();
 }
 
@@ -65,6 +72,7 @@ bool Screen_Save(const char *path)
     Image img = LoadImageFromTexture(target.texture);
     bool ok;
     ImageFlipVertical(&img);
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);   /* drop alpha (see Screen_End) */
     ok = ExportImage(img, path);
     UnloadImage(img);
     return ok;
