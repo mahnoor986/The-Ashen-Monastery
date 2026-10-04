@@ -1756,7 +1756,7 @@ int Game_Tour(Game *g)
     for (wing = 0; wing <= WING_COUNT; wing++) {
         const World *w = &g->world;
         const Room *big = NULL;
-        float x, z, yaw;
+        float x = 0.0f, z = 0.0f, yaw = 0.0f;
         bool ok = wing < WING_COUNT ? (Game_NewGame(g, wing), g->state == STATE_PLAYING && g->wing == wing)
                                     : Game_LoadSanctum(g);
         if (!ok) { printf("tour: wing %d failed to load\n", wing + 1); return 1; }

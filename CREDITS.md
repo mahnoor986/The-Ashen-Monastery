@@ -2,10 +2,14 @@
 
 The Ashen Monastery, a student project in C99 + raylib.
 
-**Made in code** (no external files): all 3D models (Kael, Ashen Monks, Choir Wraiths, Ember
-Priests, the Red Abbot, Master Oren and the apprentices), particles, falling ash and embers, the red
-lightning, the generated textures (carpet, stained glass, banners, book spines, bone, cobwebs, paintings, ...), and
-the **lightning crack and bell sounds** (synthesised in `src/audio.c`).
+**Made in code** (no external files): the castle architecture and every prop, all characters
+(Kael, Ashen Monks, Choir Wraiths, Ember Priests, the Red Abbot, the Ember Serpent, Master Oren and
+the apprentices), the five Soul Relics, the title castle, cliff, sky, moon, clouds, snow and crows,
+particles, falling ash and embers, moonlight shafts, the red lightning, the generated textures
+(carpet, gold, stained glass, banners with the key-and-crescent emblem, book spines, bone,
+cobwebs, flames, paintings, cloth, potion glow, mirror glass, lit windows, snow, leather, ruby,
+silver, embers), and these **synthesised sounds**: lightning crack, bell toll, bell breaking,
+thunder, wind, menu whoosh, relic drone and serpent hiss (`src/audio.c`).
 
 ## Third-party assets
 
@@ -13,10 +17,10 @@ the **lightning crack and bell sounds** (synthesised in `src/audio.c`).
 |-------|----------|--------|--------|---------|
 | Pirata One | titles | Rodrigo Fuenzalida, Nicolas Massi | Google Fonts | SIL Open Font License 1.1 |
 | Crimson Text | body text | The Crimson Text Project Authors (Sebastian Kosch) | Google Fonts | SIL Open Font License 1.1 |
-| RPG Audio: `creak*`, `handleCoins*`, `doorOpen_*`, `footstep0*`, `knifeSlice*`, `cloth*`, `metalClick` | reliquary, seal found, door, footsteps, fireball whoosh, dash, menu | Kenney | kenney.nl | CC0 |
-| Impact Sounds: `impactPlate_medium_*`, `impactPunch_heavy_*`, `impactGlass_light_*`, `impactWood_heavy_*` | lightning hit, player hurt, fireball shatter, enemy death | Kenney | kenney.nl | CC0 |
+| RPG Audio: `creak*`, `handleCoins*`, `doorOpen_*`, `footstep0*`, `knifeSlice*`, `cloth*`, `metalClick` | chest, seal found, door, footsteps, fireball whoosh, dash, menu tick | Kenney | kenney.nl | CC0 |
+| Impact Sounds: `impactPlate_medium_*`, `impactPunch_heavy_*`, `impactGlass_light_*`, `impactWood_heavy_*` | lightning hit + cage clang, player hurt, fireball / relic shatter, enemy death | Kenney | kenney.nl | CC0 |
 | Ghost Moans (`qubodup-GhostMoan01-05`) | Choir Wraiths singing | qubodup | opengameart.org | CC0 |
-| Scary High-pitched Ghost (`scaryhighpitchedghost`) | wraith scare | Fupi | opengameart.org | CC0 |
+| Scary High-pitched Ghost (`scaryhighpitchedghost`) | wraith scare, relic screams | Fupi | opengameart.org | CC0 |
 | Loopable Dungeon Ambience (`dungeon_ambient_1.ogg`) | ambience loop | JaggedStone | opengameart.org | CC0 |
 | Stone Block Wall (`stone_block_wall`) -> `assets/textures/wall_stone.png` | stone walls | Poly Haven | polyhaven.com | CC0 |
 | Grey Plaster 02 (`grey_plaster_02`) -> `trim_stone.png` | pale stone trim, arches, plinths | Poly Haven | polyhaven.com | CC0 |

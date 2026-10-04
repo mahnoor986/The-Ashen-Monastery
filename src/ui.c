@@ -390,8 +390,8 @@ void UI_DrawVictory(const Game *g)
         "Created by: ___",
         "Fonts: Pirata One, Crimson Text (SIL Open Font License, Google Fonts)",
         "Sounds: Kenney RPG Audio + Impact Sounds (CC0);  qubodup, Fupi, JaggedStone (OpenGameArt, CC0)",
-        "Textures: Poly Haven (CC0)",
-        "Characters, enemies, particles, bells and lightning: made in code with raylib",
+        "Textures: Poly Haven (CC0) - see CREDITS.md for every asset",
+        "Castle, props, characters, relics, bells, thunder and lightning: made in code with raylib",
     };
     for (w = 0; w < WING_COUNT; w++)
         for (i = 0; i < WINGS[w].chests; i++) { total++; if (g->found[w][i]) found++; }

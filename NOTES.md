@@ -6,23 +6,29 @@ The combined master spec replaced CLAUDE.md. Old specs moved to `docs/old_specs/
 (`CLAUDE_blackthorn_manor.md`, `UPGRADE_ASHEN.md`; there was no `ENVIRONMENT_PS1.md`).
 Mood photos are in `reference/` (used for palette/lighting/room types only; the castle is original).
 
-| # | Item | Status at the start |
-|---|------|---------------------|
-| 1 | Story, names, texts | mostly done (Ashen names, seals, death screen, Sanctum); intro lines 2/4 and a few prompts differ |
-| 2 | Red Lightning wand | done (aim assist, ray march, crackling bolt + forks, red flash light, synth crack) |
-| 3 | PS1 pipeline, moonlit grade | partly: 640x360 + post.fs exist, but the grade is the old red/black one |
-| 4 | `--tour` screenshots | not started |
-| 5 | Materials, world-space UVs | not started (one 4x4 atlas, per-face UVs) |
-| 6 | Architecture from the grid | not started (block walls) |
-| 7 | Props, room themes | not started |
-| 8 | Windows, moonlight, weather | partly (bell tolls, embers, ash exist) |
-| 9 | Per-pixel lighting, palette, mood | not started (baked vertex torch light) |
-| 10 | Minimap + full map | not started |
-| 11 | Enemy restyle, model slots | partly (red eyes, twitching, tall/thin; still boxes) |
-| 12 | Title screen + menus | not started (menu over wing 1) |
-| 13 | Relics, serpent, immortal boss | not started |
-| 14 | Sanctum ending | mostly done (needs the new architecture/props) |
-| 15 | Wrap up | — |
+| # | Item | Status at the start | Now |
+|---|------|---------------------|-----|
+| 1 | Story, names, texts | mostly done | done |
+| 2 | Red Lightning wand | done | done |
+| 3 | PS1 pipeline, moonlit grade | old red/black grade | done |
+| 4 | `--tour` screenshots | not started | done |
+| 5 | Materials, world-space UVs | not started | done |
+| 6 | Architecture from the grid | not started | done |
+| 7 | Props, room themes | not started | done |
+| 8 | Windows, moonlight, weather | partly | done |
+| 9 | Per-pixel lighting, palette, mood | not started | done (tag `environment-done`) |
+| 10 | Minimap + full map | not started | done |
+| 11 | Enemy restyle, model slots | partly | done |
+| 12 | Title screen + menus | not started | done (tag `title-done`) |
+| 13 | Relics, serpent, immortal boss | not started | done (tag `relics-done`) |
+| 14 | Sanctum ending | mostly done | done |
+| 15 | Wrap up | - | done (tag `final`) |
+
+Nothing from the cut list (section 17) had to be cut.
+
+**For the student:** write your name into "Created by: ___" - it appears in `src/ui.c` (final
+screen) and `src/title.c` (credits). The paths in CLAUDE.md section 1 (`C:/Users/NAT/...`) are
+different on this PC; see below.
 
 Environment: the spec's `C:/Users/NAT/...` paths don't exist on this PC; the real paths are
 `C:/Users/HP GM/Downloads/w64devkit/bin` and `C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64`
@@ -446,3 +452,11 @@ Decisions made while building, and things worth knowing.
   (a little darker now, they glowed too white). Friends' lines within 2 units, Oren's 4-line
   dialogue, fade to "THE BELLS ARE SILENT" with seals, relics, enemies, time and short credits;
   Enter returns to the title.
+
+## Item 15 - Wrap up
+- `make release` builds without warnings (fixed three -O2 "may be used uninitialized" in the tour);
+  debug and release both pass `--autotest` (35 checks). README rewritten (story, how to play,
+  controls, debug keys, wings, build steps, flags, file overview); CREDITS lists every Poly Haven
+  asset by name, the fonts, the Kenney / OpenGameArt sounds and everything made in code.
+- The old `final` tag (Ashen Monastery before this spec) was moved to this version; the earlier
+  milestones stay reachable through `submittable`, `environment-done`, `title-done`, `relics-done`.
