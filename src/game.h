@@ -20,6 +20,7 @@ typedef enum {
     STATE_VICTORY,        /* "THE BELLS ARE SILENT" */
     STATE_INTRO,          /* the story, line by line, before wing 1 */
     STATE_DIALOGUE,       /* Master Oren speaks (Sanctum) */
+    STATE_MAP,            /* full-screen map (game paused) */
 } GameState;
 
 typedef struct {
@@ -77,6 +78,14 @@ typedef struct Game {
     bool      abbotDead;
     bool      abbotAlerted;
     bool      ghostHintShown;          /* "ghosts can only be hurt in the light" */
+
+    /* map: cells the player has seen (kept on respawn, cleared when the wing is (re)loaded) */
+    unsigned char discovered[WORLD_MAX_H][WORLD_MAX_W];
+    float     revealTimer;
+
+    /* the serpent's cage in the Bell Tower (relics.c) */
+    bool      cageExists, cageBroken;
+    Vector3   cagePos;
 
     /* presentation */
     Banner    banners[MAX_BANNERS];

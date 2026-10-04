@@ -12,6 +12,7 @@
 #include "character.h"
 #include "audio.h"
 #include "ui.h"
+#include "minimap.h"
 #include "rlgl.h"
 #include "raymath.h"
 
@@ -196,6 +197,8 @@ bool Game_LoadWing(Game *g, int wing)
     if (!World_Load(&g->world, WINGS[wing].file, WINGS[wing].chests, true)) return false;
     g->world.theme = wing;
     World_BuildMeshes(&g->world);
+    memset(g->discovered, 0, sizeof(g->discovered));
+    Minimap_Build(g);
     g->worldLoaded = true;
     g->wing = wing;
     g->sanctum = false;
@@ -281,6 +284,8 @@ bool Game_LoadSanctum(Game *g)
     if (!World_Load(&g->world, SANCTUM_FILE, 0, false)) return false;
     g->world.theme = WING_COUNT;
     World_BuildMeshes(&g->world);
+    memset(g->discovered, 0, sizeof(g->discovered));
+    Minimap_Build(g);
     g->worldLoaded = true;
     g->sanctum = true;
     g->enemyCount = 0;
@@ -688,6 +693,7 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
 
     if (in->pause) { g->state = STATE_PAUSED; g->pauseSel = 0; SetMouseCaptured(g, false); return; }
     if (in->inventory) { g->state = STATE_INVENTORY; SetMouseCaptured(g, false); return; }
+    if (in->map) { g->state = STATE_MAP; SetMouseCaptured(g, false); return; }
     if (!g->mouseLook && in->click && !g->autotest) { SetMouseCaptured(g, true); return; }
 
     /* debug keys */
@@ -704,6 +710,8 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     if (g->mouseSkip > 0 || (!g->mouseLook && !g->autotest)) cam.look = (Vector2){ 0 };
     if (g->mouseSkip > 0) g->mouseSkip--;
 
+    g->revealTimer -= dt;
+    if (g->revealTimer <= 0.0f) { g->revealTimer = 0.15f; Minimap_Reveal(g); }
     events = Player_Update(&g->player, &g->rig, &g->world, in, dt);
     if (events & PLAYER_EV_STEP) Audio_Play(SND_STEP, 1.0f);
     if (events & PLAYER_EV_DASH) Audio_Play(SND_DASH, 1.0f);
@@ -830,6 +838,9 @@ void Game_Update(Game *g, const Input *in, float dt)
     case STATE_INVENTORY:
         if (in->inventory || in->pause || in->confirm) { g->state = STATE_PLAYING; SetMouseCaptured(g, true); }
         break;
+    case STATE_MAP:
+        if (in->map || in->pause || in->confirm) { g->state = STATE_PLAYING; SetMouseCaptured(g, true); }
+        break;
     case STATE_DEAD:
         if (in->confirm || in->click) Respawn(g);
         break;
@@ -871,6 +882,7 @@ void Game_Init(Game *g, int startWing, bool directStart, bool autotest)
 void Game_Shutdown(Game *g)
 {
     if (g->worldLoaded) World_Unload(&g->world);
+    Minimap_Unload();
     Audio_Shutdown();
     UI_Shutdown();
     Character_Shutdown();
@@ -1091,6 +1103,7 @@ void Game_Draw(Game *g)
     case STATE_PLAYING:   if (!g->hideHud) UI_DrawHUD(g); break;
     case STATE_PAUSED:    UI_DrawHUD(g); UI_DrawPause(g); break;
     case STATE_INVENTORY: UI_DrawInventory(g); break;
+    case STATE_MAP:       Minimap_DrawFull(g); break;
     case STATE_DEAD:      UI_DrawDeath(g); break;
     case STATE_INTRO:     UI_DrawIntro(g); break;
     case STATE_DIALOGUE:  UI_DrawHUD(g); UI_DrawDialogue(g); break;
@@ -1642,6 +1655,9 @@ int Game_Autotest(Game *g)
         g->state = STATE_INVENTORY;
         Frame(g, &none, dt, true);
         Screen_Save("shots/inventory.png");
+        g->state = STATE_MAP;
+        Frame(g, &none, dt, true);
+        Screen_Save("shots/map.png");
         g->state = STATE_PAUSED;
         g->pauseSel = 1;
         Frame(g, &none, dt, true);

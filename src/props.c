@@ -442,7 +442,7 @@ static bool PlaceFireplace(World *w, int x, int z, int d, void *ctx)
     World_AddFlame(w, Frame_Point(f, -0.22f, 0.32f, 0.32f), 1.1f);
     World_AddFlame(w, Frame_Point(f, 0.0f, 0.38f, 0.30f), 1.3f);
     World_AddFlame(w, Frame_Point(f, 0.22f, 0.32f, 0.34f), 1.0f);
-    World_AddLight(w, Frame_Point(f, 0, 0.9f, 0.9f), (Vector3){ 1.15f, 0.62f, 0.26f }, 7.5f);
+    World_AddLight(w, Frame_Point(f, 0, 0.9f, 0.9f), (Vector3){ 0.9f, 0.5f, 0.22f }, 7.0f);
     Add(w, P_RUG, f, x, z, 0, 0, 0, 0, 0);
     (*left)--;
     return true;

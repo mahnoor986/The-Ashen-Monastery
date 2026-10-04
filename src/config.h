@@ -82,6 +82,7 @@
 #define LIGHT_FADE_SPEED 4.0f           /* lights fade in/out over 1/4 s instead of popping */
 #define CHAR_AMBIENT    0.06f           /* characters get a little extra light (readable silhouettes) */
 #define FLOOR_SPECULAR  0.35f           /* polished flagstones catch the lights */
+#define FLAME_LIGHT_SCALE 0.72f         /* overall brightness of candle/torch/fire light */
 #define PLAYER_LIGHT_R  0.30f           /* soft, slightly cool light around the player */
 #define PLAYER_LIGHT_G  0.32f
 #define PLAYER_LIGHT_B  0.38f
@@ -214,6 +215,12 @@
 #define AMBIENCE_VOLUME     0.35f
 #define FOOTSTEP_INTERVAL   0.4f        /* seconds between footsteps at full speed */
 
+/* --------------------------------------------------------------- minimap */
+#define MINIMAP_W           230.0f      /* corner minimap size in pixels */
+#define MINIMAP_H           170.0f
+#define MINIMAP_CELLS       24.0f       /* cells visible across the minimap */
+#define MAP_REVEAL_RANGE    7.0f        /* cells this close (and in sight) get discovered */
+
 /* ------------------------------------------------------------------ save */
 #define SAVE_FILE           "save.txt"  /* highest unlocked wing (1-5) */
 
@@ -265,7 +272,7 @@ typedef struct {
     /* 1: cold moonlit blue, many candles (easiest to see) */                                       \
     { "assets/wings/wing1.txt", 3,     1.00f, 0.8f, 1.0f,  0.050f, 7.0f, 0.30f, { 0.025f, 0.030f, 0.060f }, { 0.70f, 0.85f, 1.30f }, 1.15f }, \
     /* 2: warm gold candlelight, crimson banners */                                                 \
-    { "assets/wings/wing2.txt", 4,     1.05f, 0.9f, 1.1f,  0.055f, 6.5f, 0.26f, { 0.045f, 0.030f, 0.035f }, { 0.95f, 0.82f, 0.88f }, 1.25f }, \
+    { "assets/wings/wing2.txt", 4,     1.05f, 0.9f, 1.1f,  0.055f, 6.5f, 0.26f, { 0.045f, 0.030f, 0.035f }, { 0.95f, 0.82f, 0.88f }, 1.0f }, \
     /* 3: amber reading lamps, green-tinted shadows */                                              \
     { "assets/wings/wing3.txt", 4,     1.10f, 1.0f, 1.2f,  0.065f, 6.0f, 0.25f, { 0.025f, 0.040f, 0.032f }, { 0.70f, 0.95f, 0.80f }, 1.15f }, \
     /* 4: sickly pale green-cyan, few lights, dense fog */                                          \

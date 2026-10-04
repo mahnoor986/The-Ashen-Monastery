@@ -5,6 +5,7 @@
 #include "game.h"
 #include "config.h"
 #include "post.h"
+#include "minimap.h"
 
 static Font      titleFont, bodyFont;     /* module-private GPU resources */
 static bool      titleLoaded, bodyLoaded;
@@ -14,7 +15,7 @@ static Texture2D vignette;
 
 static float Clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
 #define CONTROLS_TEXT "WASD move  \xC2\xB7  Mouse look  \xC2\xB7  Left click Red Lightning  \xC2\xB7  Shift dash  \xC2\xB7  " \
-                      "Hold E open chest  \xC2\xB7  I inventory  \xC2\xB7  Esc pause"
+                      "Hold E open chest  \xC2\xB7  M map  \xC2\xB7  I inventory  \xC2\xB7  Esc pause"
 
 /* ============================================================ fonts + text */
 
@@ -214,6 +215,7 @@ void UI_DrawHUD(const Game *g)
     DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 2.5f, (Color){ 230, 30, 30, 230 });
     DrawChestPrompt(g);
     DrawBossBar(g);
+    Minimap_Draw(g);
     if (g->sanctum && g->state == STATE_PLAYING) {
         if (g->talkNpc >= 0) {
             const Npc *n = &g->npcs[g->talkNpc];

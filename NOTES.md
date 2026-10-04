@@ -346,3 +346,20 @@ Decisions made while building, and things worth knowing.
   The background clear colour is the wing's fog colour.
 - Performance: `--tour` now runs without vsync and measures ~130 FPS average on this Intel HD 510
   (16 lights, 640x360), so MAX_LIGHTS stays 16.
+
+## Item 10 - Minimap and full map
+- `minimap.c` (new): at load the wing is painted into a texture (8 px per cell: dark stone walls,
+  lighter wall edges, grey-blue room floors, slightly darker corridors, dark red carpets, brown
+  floorboards). The corner minimap (230x170, rounded dark panel, thin old-gold border, ~85%
+  opacity, north up, ~24 cells across) shows a window of it around Kael, with the wing name and
+  "Ward Seals x/y - M: map" below.
+- Exploration: every 0.15 s, open cells within 7 units that Kael can see (grid line of sight)
+  become discovered, and walls next to discovered floor. Undiscovered cells are drawn dark.
+  `Game.discovered` survives death/respawn and is cleared when a wing is (re)loaded.
+- Always shown: unopened chests (gold, even undiscovered), opened chests (grey check), the exit
+  (red locked / green open), Kael (white arrow, facing), the Red Abbot as a pulsing red dot once
+  alerted, and the serpent cage (fields ready for item 13).
+- M opens `STATE_MAP`: the whole wing scaled to fit, the same icons, a legend; M/Esc/Enter close.
+  Controls hint lists "M map". `shots/map.png` in the autotest.
+- Lighting balance: candle/torch/fire light x0.72 (`FLAME_LIGHT_SCALE`), dimmer fireplace and wing 2
+  candles, less extra light on characters (the dormitory was over-exposed).

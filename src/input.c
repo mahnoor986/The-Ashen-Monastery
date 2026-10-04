@@ -21,6 +21,7 @@ Input Input_Read(void)
     in.usePressed = IsKeyPressed(KEY_E);
     in.pause = IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P);
     in.inventory = IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB);
+    in.map = IsKeyPressed(KEY_M);
     in.confirm = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
     in.up = IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP);
     in.down = IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN);

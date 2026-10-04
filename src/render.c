@@ -377,7 +377,7 @@ void Render_BeginFrame(const WingConfig *wing, const World *w, Camera3D cam, Vec
         if (slots[i].light < 0 || slots[i].light >= w->torchCount) continue;
         t = &w->torches[slots[i].light];
         if (t->flicker > 0.0f) {
-            k = LightFlicker(slots[i].light, time) * wing->lightMul * (1.0f + 0.7f * flare);
+            k = LightFlicker(slots[i].light, time) * wing->lightMul * FLAME_LIGHT_SCALE * (1.0f + 0.7f * flare);
             col[n] = Vector3Scale(t->color, k * slots[i].weight);
         } else {
             /* moonlit window: lightning floods it with white-blue light */
@@ -438,7 +438,7 @@ void Render_UseWorldLight(void)
 void Render_UseEntityLight(Vector3 light)
 {
     float avg = (light.x + light.y + light.z) / 3.0f;
-    if (hasShader) SetF(locExtraAmbient, CHAR_AMBIENT + 0.3f * fminf(avg, 1.0f));
+    if (hasShader) SetF(locExtraAmbient, CHAR_AMBIENT + 0.12f * fminf(avg, 1.0f));
 }
 
 void Render_SetEmissive(bool on)
