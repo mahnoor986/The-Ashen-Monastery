@@ -5,13 +5,13 @@
             "name": "Win32 w64devkit",
             "includePath": [
                 "${workspaceFolder}/src",
-                "C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64/include"
+                "C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64/include"
             ],
             "defines": [
                 "_DEBUG",
                 "PLATFORM_DESKTOP"
             ],
-            "compilerPath": "C:/Users/NAT/Documents/w64devkit/bin/gcc.exe",
+            "compilerPath": "C:/Users/HP GM/Downloads/w64devkit/bin/gcc.exe",
             "cStandard": "c99",
             "intelliSenseMode": "windows-gcc-x64"
         }

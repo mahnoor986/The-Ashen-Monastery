@@ -1,7 +1,8 @@
-# Gothic Dungeon - Makefile for w64devkit + raylib (Windows)
+# Blackthorn Manor - Makefile for w64devkit + raylib 6.0 (Windows)
 #
-#   make            debug build -> game.exe
+#   make            debug build -> BlackthornManor.exe
 #   make run        build and run
+#   make autotest   build and run the screenshot self-test (writes shots/*.png)
 #   make release    optimized build, no console window
 #   make clean
 #
@@ -9,20 +10,20 @@
 #   RAYLIB_PATH/include/raylib.h
 #   RAYLIB_PATH/lib/libraylib.a
 #
-# Example:
-#   make RAYLIB_PATH=C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64
+# Example (paths may contain spaces, they are quoted below):
+#   make RAYLIB_PATH="C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64"
 
 CC          := gcc
-TARGET      := game.exe
+TARGET      := BlackthornManor.exe
 
-RAYLIB_PATH ?= C:/Users/NAT/Documents/raylib-6.0_win64_mingw-w64
+RAYLIB_PATH ?= C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64
 
 SRC  := $(wildcard src/*.c)
 OBJ  := $(patsubst src/%.c,build/%.o,$(SRC))
 DEP  := $(OBJ:.o=.d)
 
-CFLAGS  := -std=c99 -Wall -Wextra -Wno-unused-parameter -g -O0 -Isrc -I$(RAYLIB_PATH)/include
-LDFLAGS := -L$(RAYLIB_PATH)/lib
+CFLAGS  := -std=c99 -Wall -Wextra -Wno-unused-parameter -g -O0 -Isrc -I"$(RAYLIB_PATH)/include"
+LDFLAGS := -L"$(RAYLIB_PATH)/lib"
 LDLIBS  := -lraylib -lopengl32 -lgdi32 -lwinmm
 
 all: $(TARGET)
@@ -39,12 +40,15 @@ build:
 run: $(TARGET)
 	./$(TARGET)
 
+autotest: $(TARGET)
+	./$(TARGET) --autotest
+
 release: clean
-	$(MAKE) CFLAGS="-std=c99 -Wall -O2 -Isrc -I$(RAYLIB_PATH)/include" LDLIBS="-lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -s"
+	$(MAKE) CFLAGS='-std=c99 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -I"$(RAYLIB_PATH)/include"' LDLIBS="-lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -s"
 
 clean:
 	rm -rf build $(TARGET)
 
 -include $(DEP)
 
-.PHONY: all run release clean
+.PHONY: all run autotest release clean

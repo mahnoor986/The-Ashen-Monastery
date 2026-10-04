@@ -2,17 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Gothic Dungeon",
+            "name": "Debug Blackthorn Manor",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/game.exe",
+            "program": "${workspaceFolder}/BlackthornManor.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "C:/Users/NAT/Documents/w64devkit/bin/gdb.exe",
+            "miDebuggerPath": "C:/Users/HP GM/Downloads/w64devkit/bin/gdb.exe",
             "preLaunchTask": "build",
             "setupCommands": [
                 {

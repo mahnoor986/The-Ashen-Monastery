@@ -1,0 +1,12 @@
+# build output
+build/
+*.exe
+*.o
+*.d
+
+# runtime files
+save.txt
+shots/*.png
+
+# original downloaded archives (extracted copies are committed)
+assets/**/*.zip
