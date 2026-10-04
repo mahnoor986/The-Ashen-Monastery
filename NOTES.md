@@ -251,3 +251,16 @@ Decisions made while building, and things worth knowing.
   every other open cell is a corridor cell; connected room cells form `Room`s (bounding box +
   cell count). The architecture will use this for wall heights.
 - New flags: `--sanctum` (or `--wing 6`) starts in the Sanctum.
+
+## Item 5 - Materials with world-space UVs
+- `textures.c` now has world materials (`MaterialId`): 8 photo materials from `assets/textures/`
+  (Poly Haven CC0, see CREDITS.md) and 10 generated ones (carpet, gold, stained glass, banner with
+  an original key + crescent emblem, book spines, bone, cobweb, flame, painting, crimson cloth).
+  Every texture is resized to 128x128, point filtered, repeat wrap, no mipmaps.
+- Photo textures are stored pre-shrunk to 256x256 PNG (the 1k originals were 5-6 MB each);
+  at load they are resized to 128, desaturated and tinted per material (stone a little
+  green-grey). A missing file prints download instructions and uses a generated texture.
+- `meshgen.c`: `MB_Quad` (free quad) + `MB_WorldUV` (box-projected world-space UVs, one repeat
+  per 2 units). `architecture.c` (new) builds one mesh per (16x16 chunk, material); faces are
+  split into ~1x1 quads. The old atlas stays only for characters, chests and the door.
+- Cobwebs (alpha) are drawn in a transparent pass without depth writes.

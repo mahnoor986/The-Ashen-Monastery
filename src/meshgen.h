@@ -16,6 +16,12 @@ void MB_Begin(MeshBuilder *mb);
 /* One quad: corner o, edge a (texture "right") and edge b (texture "up"); a x b points out of
  * the face. light[4] = light color at o, o+a, o+a+b, o+b. */
 void MB_Face(MeshBuilder *mb, Vector3 o, Vector3 a, Vector3 b, int tile, const Color light[4]);
+/* A quad with free corners p[0..3] (counter-clockwise seen from the front), explicit UVs and a
+ * light color per corner. Used by the architecture and props (world materials). */
+void MB_Quad(MeshBuilder *mb, const Vector3 p[4], const Vector2 uv[4], const Color light[4]);
+/* World-space UV of point p on a face with normal n: projected on the plane the face mostly
+ * faces, MAT_UV_SCALE repeats per world unit, so textures flow across neighbouring faces. */
+Vector2 MB_WorldUV(Vector3 p, Vector3 n);
 /* An axis-aligned box, all six faces, with one light color everywhere. */
 void MB_Box(MeshBuilder *mb, Vector3 min, Vector3 max, int tile, Color light);
 /* Upload to the GPU and hand over ownership of the arrays (free with UnloadMesh).

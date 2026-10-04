@@ -4,7 +4,7 @@ The Ashen Monastery, a student project in C99 + raylib.
 
 **Made in code** (no external files): all 3D models (Kael, Ashen Monks, Choir Wraiths, Ember
 Priests, the Red Abbot, Master Oren and the apprentices), particles, falling ash and embers, the red
-lightning, the generated block textures (bookshelf, carpet, bone, reliquary, ember cloth, ...), and
+lightning, the generated textures (carpet, stained glass, banners, book spines, bone, cobwebs, paintings, ...), and
 the **lightning crack and bell sounds** (synthesised in `src/audio.c`).
 
 ## Third-party assets
@@ -18,12 +18,14 @@ the **lightning crack and bell sounds** (synthesised in `src/audio.c`).
 | Ghost Moans (`qubodup-GhostMoan01-05`) | Choir Wraiths singing | qubodup | opengameart.org | CC0 |
 | Scary High-pitched Ghost (`scaryhighpitchedghost`) | wraith scare | Fupi | opengameart.org | CC0 |
 | Loopable Dungeon Ambience (`dungeon_ambient_1.ogg`) | ambience loop | JaggedStone | opengameart.org | CC0 |
-| Castle Brick 07 (`castle_brick_07`) -> `assets/textures/wall.png` | stone walls | Poly Haven | polyhaven.com | CC0 |
-| Dark Wooden Planks (`dark_wooden_planks`) -> `wood_wall.png` | wood-panel walls | Poly Haven | polyhaven.com | CC0 |
-| Cobblestone Floor 001 (`cobblestone_floor_001`) -> `floor.png` | stone floors | Poly Haven | polyhaven.com | CC0 |
-| Rock Wall 07 (`rock_wall_07`) -> `pillar.png` | pillars | Poly Haven | polyhaven.com | CC0 |
-| Rusty Metal 02 (`rusty_metal_02`) -> `door.png` | iron doors | Poly Haven | polyhaven.com | CC0 |
-| Dark Planks (`dark_planks`) -> `ceiling.png` | ceilings | Poly Haven | polyhaven.com | CC0 |
+| Stone Block Wall (`stone_block_wall`) -> `assets/textures/wall_stone.png` | stone walls | Poly Haven | polyhaven.com | CC0 |
+| Grey Plaster 02 (`grey_plaster_02`) -> `trim_stone.png` | pale stone trim, arches, plinths | Poly Haven | polyhaven.com | CC0 |
+| Monastery Stone Floor (`monastery_stone_floor`) -> `floor_stone.png` | flagstone floors | Poly Haven | polyhaven.com | CC0 |
+| Dark Wood (`dark_wood`) -> `wood_dark.png` | beams, doors, furniture, floorboards | Poly Haven | polyhaven.com | CC0 |
+| Plastered Stone Wall (`plastered_stone_wall`) -> `ceiling.png` | ceilings and vaults | Poly Haven | polyhaven.com | CC0 |
+| Slate Floor (`slate_floor`) -> `pillar.png` | pillars and columns | Poly Haven | polyhaven.com | CC0 |
+| Rusty Metal 02 (`rusty_metal_02`) -> `metal.png` | iron: sconces, straps, cages | Poly Haven | polyhaven.com | CC0 |
+| Dark Wooden Planks (`dark_wooden_planks`) -> `wood_panel.png` | wood-paneled walls | Poly Haven | polyhaven.com | CC0 |
 
 ## Libraries
 

@@ -968,7 +968,8 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     }
     if (g->debug) DrawDebug3D(g);
 
-    /* transparent pass: ghosts, far to near, without writing depth */
+    /* transparent pass: cobwebs, then ghosts far to near, without writing depth */
+    Render_DrawWorldTransparent(&g->world);
     qsort(ghosts, (size_t)nGhosts, sizeof(ghosts[0]), CompareFar);
     rlDrawRenderBatchActive();
     BeginBlendMode(BLEND_ALPHA);

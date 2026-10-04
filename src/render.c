@@ -5,6 +5,7 @@
 #include "textures.h"
 #include "meshgen.h"
 #include "raymath.h"
+#include "rlgl.h"
 
 #define SHADER_VS "assets/shaders/world.vs"
 #define SHADER_FS "assets/shaders/world.fs"
@@ -13,7 +14,8 @@ static float    flare;        /* 0..1 torch flare when a bell tolls */
 static bool     warm;         /* Sanctum: golden fog and ambient */
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
-static Material worldMat;
+static Material worldMat;     /* atlas material (props, characters) */
+static Material mats[MAT_COUNT];  /* world materials */
 static Mesh     doorMesh, chestBody, chestLid, chestGold;   /* prop meshes */
 static int locSnap, locAmbientTint, locFlashPos, locFlashColor, locFlashRadius;
 static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
@@ -77,6 +79,14 @@ void Render_Init(void)
     worldMat = LoadMaterialDefault();
     worldMat.maps[MATERIAL_MAP_DIFFUSE].texture = Textures_Atlas();
     if (hasShader) worldMat.shader = shader;
+    {
+        int i;
+        for (i = 0; i < MAT_COUNT; i++) {
+            mats[i] = LoadMaterialDefault();
+            mats[i].maps[MATERIAL_MAP_DIFFUSE].texture = Textures_Material(i);
+            if (hasShader) mats[i].shader = shader;
+        }
+    }
     BuildProps();
 }
 
@@ -89,6 +99,14 @@ void Render_Shutdown(void)
     worldMat.maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ 0 };   /* owned by textures.c */
     worldMat.shader = (Shader){ 0 };                                  /* unloaded below */
     UnloadMaterial(worldMat);
+    {
+        int i;
+        for (i = 0; i < MAT_COUNT; i++) {
+            mats[i].maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ 0 };   /* owned by textures.c */
+            mats[i].shader = (Shader){ 0 };
+            UnloadMaterial(mats[i]);
+        }
+    }
     if (hasShader) UnloadShader(shader);
 }
 
@@ -178,8 +196,14 @@ void Render_DrawWorld(const World *w, float time)
 {
     int i;
     Render_UseWorldLight();
-    for (i = 0; i < w->chunkCount; i++)
-        DrawMesh(w->chunks[i], worldMat, MatrixIdentity());
+    for (i = 0; i < w->partCount; i++) {
+        int m = w->parts[i].mat;
+        bool glow = m == MAT_GLASS || m == MAT_FLAME;
+        if (m == MAT_COBWEB) continue;                       /* drawn in the transparent pass */
+        if (glow) Render_SetEmissive(true);
+        DrawMesh(w->parts[i].mesh, mats[m], MatrixIdentity());
+        if (glow) Render_SetEmissive(false);
+    }
 
     /* exit doors slide down into the floor as doorSlide goes 0 -> 1 */
     if (w->doorSlide < 1.0f) {
@@ -200,6 +224,27 @@ void Render_DrawWorld(const World *w, float time)
         DrawCube((Vector3){ p.x, p.y + 0.02f, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
         DrawCube((Vector3){ p.x, p.y + 0.0f, p.z }, 0.08f, 0.12f * f, 0.08f, (Color){ 255, 236, 150, 255 });
     }
+}
+
+/* Transparent world parts (cobwebs): after all opaque geometry, without depth writes. */
+void Render_DrawWorldTransparent(const World *w)
+{
+    int i;
+    rlDrawRenderBatchActive();
+    rlDisableDepthMask();
+    rlDisableBackfaceCulling();
+    Render_UseWorldLight();
+    for (i = 0; i < w->partCount; i++)
+        if (w->parts[i].mat == MAT_COBWEB) DrawMesh(w->parts[i].mesh, mats[MAT_COBWEB], MatrixIdentity());
+    rlDrawRenderBatchActive();
+    rlEnableBackfaceCulling();
+    rlEnableDepthMask();
+}
+
+/* Material of a world material id (for props drawn outside the static meshes). */
+Material Render_Material(int mat)
+{
+    return mats[mat >= 0 && mat < MAT_COUNT ? mat : 0];
 }
 
 void Render_DrawChest(Vector3 pos, float yaw, float lid, Vector3 light)

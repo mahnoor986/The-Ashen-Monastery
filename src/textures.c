@@ -1,12 +1,14 @@
-/* textures.c - generates the 16x16 block texture atlas in code.
- * Each tile is painted pixel by pixel with deterministic pseudo-random noise, so the
- * textures look exactly the same on every run. Filtering is POINT for a crisp blocky look. */
+/* textures.c - all textures: the small 16x16-tile atlas used by characters and props, and the
+ * world materials (repeating 128x128 textures: Poly Haven photos from assets/textures/ or
+ * generated in code). Generated textures use deterministic pseudo-random noise, so they look the
+ * same on every run. Filtering is POINT for the crisp PS1 look. */
 #include <math.h>
 #include <stdio.h>
 #include "config.h"
 #include "textures.h"
 
-static Texture2D atlas;   /* module-private GPU resource */
+static Texture2D atlas;   /* module-private GPU resources */
+static Texture2D materials[MAT_COUNT];
 
 /* ------------------------------------------------------------ helpers */
 
@@ -279,39 +281,303 @@ static void PaintEmber(Image *img)
     }
 }
 
-/* ------------------------------------------------------------ API */
+/* ------------------------------------------------------------ world materials */
 
-/* Real textures (optional): file in assets/textures/ -> atlas slot. */
-static const struct { const char *file; int tile; } PHOTO[] = {
-    { "wall.png",      TILE_STONE_WALL },
-    { "wood_wall.png", TILE_WOOD_WALL },
-    { "floor.png",     TILE_STONE_FLOOR },
-    { "pillar.png",    TILE_OBSIDIAN },
-    { "door.png",      TILE_IRON_DOOR },
-    { "ceiling.png",   TILE_CEILING },
+static void Px(Image *img, int x, int y, Color c)
+{
+    ImageDrawPixel(img, x & (img->width - 1), y & (img->height - 1), c);
+}
+
+/* Fallback when a photo texture is missing: rough blocks in `base` with dark joints. */
+static Image GenBlocks(Color base, int bw, int bh, float noise, int seed)
+{
+    Image img = GenImageColor(64, 64, base);
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            int row = y / bh, shift = (row & 1) * (bw / 2);
+            int bx = (x + shift) % bw, block = (x + shift) / bw + row * 7;
+            Color c = Shade(base, 0.8f + 0.3f * Rnd(block, row, seed));
+            c = Noisy(c, x, y, seed + 1, noise);
+            if (y % bh == bh - 1 || bx == bw - 1) c = Shade(base, 0.35f);
+            Px(&img, x, y, c);
+        }
+    }
+    return img;
+}
+
+static Image GenCarpet(void)
+{
+    const Color red = { 96, 8, 16, 255 }, gold = { 170, 120, 50, 255 };
+    Image img = GenImageColor(64, 64, red);
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            int lx = x % 16, ly = y % 16;
+            float d = fabsf(lx - 7.5f) + fabsf(ly - 7.5f);
+            Color c = Noisy(red, x, y, 50, 0.10f);
+            if (d > 5.5f && d < 6.6f) c = Shade(gold, 0.55f);             /* diamond lattice */
+            else if (d < 1.6f) c = Shade(gold, 0.5f);
+            if (Rnd(x, y, 51) > 0.97f) c = Shade(c, 0.7f);               /* wear */
+            Px(&img, x, y, c);
+        }
+    }
+    return img;
+}
+
+static Image GenGold(void)
+{
+    const Color gold = { 168, 124, 52, 255 };
+    Image img = GenImageColor(64, 64, gold);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            Color c = Noisy(gold, x / 2, y / 2, 52, 0.18f);
+            if ((x + y * 3) % 23 == 0) c = Shade(c, 1.35f);              /* worn highlights */
+            Px(&img, x, y, c);
+        }
+    return img;
+}
+
+/* Stained glass: deep blue / violet panes, a little crimson and gold, lead lines, a small rose at
+ * the top. Brightest in the centre. UV 0..1 covers one window light. */
+static Image GenGlass(void)
+{
+    static const Color panes[6] = { { 40, 70, 170, 255 }, { 70, 50, 150, 255 }, { 30, 90, 190, 255 },
+                                    { 90, 40, 130, 255 }, { 150, 30, 40, 255 }, { 190, 150, 60, 255 } };
+    const Color lead = { 14, 14, 20, 255 };
+    Image img = GenImageColor(64, 64, BLACK);
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            int cx = x / 8, cy = y / 8;
+            float pick = Rnd(cx + (cy & 1) * 3, cy, 53);
+            int k = pick < 0.3f ? 0 : pick < 0.55f ? 1 : pick < 0.78f ? 2 : pick < 0.9f ? 3 : pick < 0.96f ? 4 : 5;
+            float dx = (x - 31.5f) / 32.0f, dy = (y - 31.5f) / 32.0f;
+            float glow = 1.15f - 0.55f * (dx * dx + dy * dy);
+            Color c = Shade(Noisy(panes[k], x, y, 54, 0.12f), glow);
+            if ((x % 8 == 0) || (y % 8 == 0) || ((x + y) % 16 == 0 && y > 8)) c = lead;
+            if (y < 22) {                                             /* round rose motif at the top */
+                float rx = x - 31.5f, ry = y - 12.0f, r = sqrtf(rx * rx + ry * ry);
+                if (r < 9.0f && r > 7.6f) c = lead;
+                else if (r < 3.0f) c = (Color){ 210, 170, 70, 255 };
+            }
+            Px(&img, x, y, c);
+        }
+    }
+    return img;
+}
+
+/* Banner cloth: deep crimson, gold border, an original emblem of a key under a crescent moon. */
+static Image GenBanner(void)
+{
+    const Color red = { 110, 12, 22, 255 }, gold = { 196, 150, 62, 255 };
+    Image img = GenImageColor(64, 64, red);
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            Color c = Noisy(red, x, y, 55, 0.08f);
+            float mx = x - 31.5f, my = y - 18.0f, r1 = sqrtf(mx * mx + my * my);
+            float r2 = sqrtf((mx + 4.0f) * (mx + 4.0f) + (my + 3.0f) * (my + 3.0f));
+            if (x < 3 || x > 60 || y < 3) c = gold;
+            if (r1 < 9.0f && r2 > 8.0f) c = gold;                           /* crescent moon */
+            if (x >= 30 && x <= 33 && y >= 32 && y <= 52) c = gold;          /* key shaft */
+            if (y >= 44 && y <= 46 && x >= 33 && x <= 39) c = gold;          /* key teeth */
+            if (y >= 49 && y <= 51 && x >= 33 && x <= 37) c = gold;
+            if (y >= 27 && y <= 34 && x >= 27 && x <= 36 && !(y >= 29 && y <= 32 && x >= 29 && x <= 34)) c = gold;  /* bow */
+            if (y > 58 && ((x / 4) & 1)) c = gold;                          /* fringe */
+            Px(&img, x, y, c);
+        }
+    }
+    return img;
+}
+
+/* Book spines: 4 shelves per texture (one texture repeat = 2 world units = 4 shelves of 0.5). */
+static Image GenBooks(void)
+{
+    static const Color spines[7] = { { 100, 24, 24, 255 }, { 30, 60, 40, 255 }, { 34, 40, 88, 255 },
+                                     { 96, 66, 30, 255 }, { 66, 30, 70, 255 }, { 84, 76, 58, 255 }, { 40, 30, 22, 255 } };
+    const Color shelf = { 48, 32, 20, 255 }, back = { 10, 7, 5, 255 };
+    Image img = GenImageColor(64, 64, back);
+    int row, x, y;
+    for (row = 0; row < 4; row++) {
+        int top = row * 16;
+        x = 0;
+        while (x < 64) {
+            int w = 2 + (int)(Rnd(x, row, 56) * 3.0f), h = 9 + (int)(Rnd(x, row, 57) * 5.0f), bx, by;
+            Color sp = spines[(int)(Rnd(x, row, 58) * 6.99f)];
+            for (bx = x; bx < x + w && bx < 64; bx++)
+                for (by = top + 14 - h; by < top + 14; by++) {
+                    Color c = Shade(Noisy(sp, bx, by, 59, 0.1f), bx == x ? 0.6f : 1.0f);
+                    if (by == top + 14 - h + 2 && Rnd(x, row, 60) > 0.5f) c = (Color){ 170, 130, 60, 255 };
+                    Px(&img, bx, by, c);
+                }
+            x += w + (Rnd(x, row, 61) > 0.85f ? 2 : 0);
+        }
+        for (y = top + 14; y < top + 16; y++)
+            for (x = 0; x < 64; x++) Px(&img, x, y, Noisy(shelf, x, y, 62, 0.15f));
+    }
+    return img;
+}
+
+static Image GenBone(void)
+{
+    const Color bone = { 200, 190, 160, 255 };
+    Image img = GenImageColor(64, 64, bone);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            Color c = Noisy(bone, x, y, 63, 0.10f);
+            if (Rnd(x / 2, y / 2, 64) > 0.92f) c = Shade(c, 0.65f);
+            Px(&img, x, y, c);
+        }
+    return img;
+}
+
+/* Cobweb: radial threads + sagging rings on transparent black. UV (0,0) is the corner it hangs from. */
+static Image GenCobweb(void)
+{
+    Image img = GenImageColor(64, 64, (Color){ 0, 0, 0, 0 });
+    int x, y, k;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            float a = atan2f((float)y, (float)x), r = sqrtf((float)(x * x + y * y));
+            bool spoke = false, ring = false;
+            for (k = 0; k < 6; k++) if (fabsf(a - k * 0.29f - 0.06f) < 0.012f + 0.4f / (r + 4.0f)) spoke = true;
+            if (fmodf(r + 2.0f * sinf(a * 9.0f), 9.0f) < 0.9f && r > 6.0f) ring = true;
+            if ((spoke || ring) && r < 60.0f - 8.0f * Rnd(x / 6, y / 6, 65))
+                Px(&img, x, y, (Color){ 200, 205, 215, (unsigned char)fmaxf(0.0f, 170.0f - r * 1.9f) });
+        }
+    }
+    return img;
+}
+
+/* Flame: a teardrop of white-yellow fading to orange, transparent around it. */
+static Image GenFlame(void)
+{
+    Image img = GenImageColor(64, 64, (Color){ 0, 0, 0, 0 });
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            float dx = (x - 31.5f) / 32.0f, t = y / 63.0f;                /* t: 0 top .. 1 bottom */
+            float width = 0.12f + 0.8f * t * (1.0f - t * 0.4f);
+            float f = 1.0f - fabsf(dx) / width;
+            if (f <= 0.0f) continue;
+            Px(&img, x, y, (Color){ 255, (unsigned char)(130 + 120 * f * t), (unsigned char)(40 + 150 * f * f * t),
+                                    (unsigned char)(255 * fminf(1.0f, f * 2.0f)) });
+        }
+    }
+    return img;
+}
+
+/* A dim old painting: dark sky, a hill with a lone tower, a pale moon; UV 0..1 = whole canvas. */
+static Image GenPainting(void)
+{
+    const Color ink = { 16, 16, 18, 255 };
+    Image img = GenImageColor(64, 64, BLACK);
+    int x, y;
+    for (y = 0; y < 64; y++) {
+        for (x = 0; x < 64; x++) {
+            float hill = 40.0f + 6.0f * sinf(x * 0.09f) + 3.0f * sinf(x * 0.23f + 1.0f);
+            Color c = { (unsigned char)(26 + y / 3), (unsigned char)(30 + y / 3), (unsigned char)(44 + y / 4), 255 };
+            float mx = x - 44.0f, my = y - 15.0f;
+            if (mx * mx + my * my < 30.0f) c = (Color){ 170, 166, 140, 255 };
+            if (y > hill) c = (Color){ 22, 26, 20, 255 };
+            if (x >= 18 && x <= 22 && y > hill - 18 && y <= hill) c = ink;
+            if (x >= 17 && x <= 23 && y > hill - 21 && y <= hill - 18) c = ink;
+            if (x == 20 && y == (int)(hill - 12)) c = (Color){ 200, 150, 60, 255 };   /* lit window */
+            c = Noisy(c, x, y, 66, 0.12f);
+            if (x < 4 || x > 59 || y < 4 || y > 59) c = Noisy((Color){ 70, 48, 22, 255 }, x, y, 67, 0.2f);  /* frame */
+            Px(&img, x, y, c);
+        }
+    }
+    return img;
+}
+
+static Image GenCloth(void)
+{
+    const Color red = { 120, 16, 26, 255 };
+    Image img = GenImageColor(64, 64, red);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++)
+            Px(&img, x, y, Shade(Noisy(red, x, y, 68, 0.06f), 0.8f + 0.25f * sinf(x * 0.8f)));   /* folds */
+    return img;
+}
+
+/* Photo materials: file, saturation (1 = unchanged), colour multiplier, fallback colour + block size. */
+static const struct {
+    int mat; const char *file; float sat, r, g, b; Color fallback; int bw, bh;
+} PHOTO_MAT[] = {
+    { MAT_WALL_STONE, "wall_stone.png",  0.30f, 0.86f, 0.92f, 0.90f, {  86,  88,  90, 255 }, 16, 8 },
+    { MAT_WOOD_PANEL, "wood_panel.png",  0.60f, 0.80f, 0.74f, 0.70f, {  60,  40,  28, 255 }, 8, 64 },
+    { MAT_TRIM,       "trim_stone.png",  0.35f, 1.00f, 0.98f, 0.92f, { 150, 146, 134, 255 }, 32, 16 },
+    { MAT_FLOOR,      "floor_stone.png", 0.30f, 0.80f, 0.84f, 0.86f, {  76,  76,  80, 255 }, 32, 32 },
+    { MAT_WOOD,       "wood_dark.png",   0.50f, 0.62f, 0.52f, 0.46f, {  56,  38,  26, 255 }, 64, 8 },
+    { MAT_CEILING,    "ceiling.png",     0.30f, 0.50f, 0.50f, 0.52f, {  40,  38,  38, 255 }, 64, 64 },
+    { MAT_PILLAR,     "pillar.png",      0.25f, 0.70f, 0.72f, 0.74f, {  60,  60,  64, 255 }, 64, 32 },
+    { MAT_METAL,      "metal.png",       0.25f, 0.45f, 0.45f, 0.48f, {  44,  44,  50, 255 }, 64, 64 },
 };
 
-/* Shrink a photo texture to one atlas slot, darken it, and paste it in. */
-static void PastePhoto(Image *atlasImg, const char *file, int tile)
+static Image LoadPhotoMaterial(int i)
 {
-    const char *path = TextFormat("%s/%s", TEXTURE_DIR, file);
-    Image img;
-    if (!FileExists(path)) return;
-    img = LoadImage(path);
-    if (!IsImageValid(img)) { printf("warning: could not load %s (keeping the generated texture)\n", path); return; }
+    const char *path = TextFormat("%s/%s", TEXTURE_DIR, PHOTO_MAT[i].file);
+    Image img = { 0 };
+    Color *px;
+    int k;
+    if (FileExists(path)) img = LoadImage(path);
+    if (!IsImageValid(img)) {
+        printf("note: %s missing - using a generated texture. To get the real one: open https://polyhaven.com/textures,\n"
+               "      search a matching texture, download the 1k PNG diffuse map and save it as %s\n", path, path);
+        return GenBlocks(PHOTO_MAT[i].fallback, PHOTO_MAT[i].bw, PHOTO_MAT[i].bh, 0.12f, 70 + i);
+    }
     ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    ImageResize(&img, ATLAS_TILE, ATLAS_TILE);
-    ImageColorBrightness(&img, TEXTURE_DARKEN);
-    ImageDraw(atlasImg, img, (Rectangle){ 0, 0, ATLAS_TILE, ATLAS_TILE },
-              (Rectangle){ (float)((tile % ATLAS_TILES) * ATLAS_TILE), (float)((tile / ATLAS_TILES) * ATLAS_TILE),
-                           ATLAS_TILE, ATLAS_TILE }, WHITE);
-    UnloadImage(img);
+    ImageResize(&img, MAT_TEX_SIZE, MAT_TEX_SIZE);
+    px = (Color *)img.data;
+    for (k = 0; k < img.width * img.height; k++) {
+        float l = px[k].r * 0.299f + px[k].g * 0.587f + px[k].b * 0.114f, s = PHOTO_MAT[i].sat;
+        px[k].r = Clamp255((l + (px[k].r - l) * s) * PHOTO_MAT[i].r);
+        px[k].g = Clamp255((l + (px[k].g - l) * s) * PHOTO_MAT[i].g);
+        px[k].b = Clamp255((l + (px[k].b - l) * s) * PHOTO_MAT[i].b);
+        px[k].a = 255;
+    }
+    return img;
 }
+
+static void InitMaterials(void)
+{
+    Image gen[MAT_COUNT] = { 0 };
+    unsigned int i;
+    for (i = 0; i < sizeof(PHOTO_MAT) / sizeof(PHOTO_MAT[0]); i++) gen[PHOTO_MAT[i].mat] = LoadPhotoMaterial((int)i);
+    gen[MAT_CARPET] = GenCarpet();
+    gen[MAT_GOLD] = GenGold();
+    gen[MAT_GLASS] = GenGlass();
+    gen[MAT_BANNER] = GenBanner();
+    gen[MAT_BOOKS] = GenBooks();
+    gen[MAT_BONE] = GenBone();
+    gen[MAT_COBWEB] = GenCobweb();
+    gen[MAT_FLAME] = GenFlame();
+    gen[MAT_PAINTING] = GenPainting();
+    gen[MAT_CLOTH] = GenCloth();
+    for (i = 0; i < MAT_COUNT; i++) {
+        if (gen[i].width != MAT_TEX_SIZE) ImageResizeNN(&gen[i], MAT_TEX_SIZE, MAT_TEX_SIZE);   /* chunky pixels */
+        materials[i] = LoadTextureFromImage(gen[i]);
+        SetTextureFilter(materials[i], TEXTURE_FILTER_POINT);
+        SetTextureWrap(materials[i], TEXTURE_WRAP_REPEAT);
+        UnloadImage(gen[i]);
+    }
+}
+
+Texture2D Textures_Material(int mat)
+{
+    return materials[mat >= 0 && mat < MAT_COUNT ? mat : 0];
+}
+
+/* ------------------------------------------------------------ API */
 
 void Textures_Init(void)
 {
     Image img = GenImageColor(TILE_PIXELS * ATLAS_TILES, TILE_PIXELS * ATLAS_TILES, MAGENTA);
-    unsigned int i;
     PaintStoneWall(&img);
     PaintWoodWall(&img);
     PaintObsidian(&img);
@@ -328,18 +594,20 @@ void Textures_Init(void)
     PaintPlain(&img, TILE_IRON, (Color){ 44, 44, 50, 255 }, 0.2f);
     PaintEmber(&img);
 
-    /* scale the 16 px tiles up to 64 px slots (nearest keeps them crisp), then add photo textures */
+    /* scale the 16 px tiles up to 64 px slots (nearest keeps them crisp) */
     ImageResizeNN(&img, ATLAS_TILE * ATLAS_TILES, ATLAS_TILE * ATLAS_TILES);
-    for (i = 0; i < sizeof(PHOTO) / sizeof(PHOTO[0]); i++) PastePhoto(&img, PHOTO[i].file, PHOTO[i].tile);
 
     atlas = LoadTextureFromImage(img);
     SetTextureFilter(atlas, TEXTURE_FILTER_POINT);
     UnloadImage(img);
+    InitMaterials();
 }
 
 void Textures_Shutdown(void)
 {
+    int i;
     UnloadTexture(atlas);
+    for (i = 0; i < MAT_COUNT; i++) UnloadTexture(materials[i]);
 }
 
 Texture2D Textures_Atlas(void)

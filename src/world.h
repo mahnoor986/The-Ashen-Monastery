@@ -23,6 +23,11 @@ typedef struct {
 } Room;
 
 typedef struct {
+    Mesh mesh;
+    int  mat;            /* MaterialId */
+} WorldPart;
+
+typedef struct {
     Vector3 pos;         /* flame position */
     Vector3 normal;      /* direction the torch sticks out of the wall */
 } Torch;
@@ -31,7 +36,7 @@ typedef struct {
     char  name[64];                          /* first line of the file */
     int   w, h;                              /* grid size in cells */
     char  grid[WORLD_MAX_H][WORLD_MAX_W];    /* raw map characters */
-    unsigned char floorTile[WORLD_MAX_H][WORLD_MAX_W];  /* atlas tile of each floor cell */
+    unsigned char floorMat[WORLD_MAX_H][WORLD_MAX_W];   /* MaterialId of each floor cell */
 
     Vector3 start;                           /* player start (feet) */
     float   startYaw;                        /* player start facing */
@@ -49,14 +54,16 @@ typedef struct {
     unsigned char roomId[WORLD_MAX_H][WORLD_MAX_W]; /* 1-based room index, 0 = not a room */
     Room  rooms[MAX_ROOMS];      int roomCount;
 
-    Mesh  chunks[MAX_CHUNKS];    int chunkCount;
-    int   vertexCount;                       /* total over all chunks (for the autotest summary) */
+    WorldPart parts[MAX_WORLD_PARTS]; int partCount;   /* one mesh per (chunk, material) */
+    int   chunkCount;                        /* chunks that have any geometry */
+    int   vertexCount;                       /* total over all parts (for the autotest summary) */
 } World;
 
 /* Load + validate a wing file. Prints errors (file:line:col) to stdout and returns false on any error.
  * needExit = false allows a map without an 'E' (the Sanctum). */
 bool World_Load(World *w, const char *path, int expectedChests, bool needExit);
-void World_BuildMeshes(World *w);            /* needs a GL context (after InitWindow) */
+/* Builds the 3D architecture from the grid (architecture.c); needs a GL context. */
+void World_BuildMeshes(World *w);
 void World_Unload(World *w);
 
 bool World_IsSolid(const World *w, int x, int z);          /* out of bounds counts as solid */

@@ -25,6 +25,8 @@ void Render_SetWarm(bool on);                    /* Sanctum: golden fog + ambien
 void Render_SetFlash(Vector3 pos, Vector3 color, float radius);   /* lightning flash light */
 
 void Render_DrawWorld(const World *w, float time);    /* call inside BeginMode3D */
+void Render_DrawWorldTransparent(const World *w);     /* cobwebs etc., after opaque things */
+Material Render_Material(int mat);                    /* world material (MaterialId) */
 /* A treasure chest; `lid` 0 = closed .. 1 = open (an open chest glows gold inside). */
 void Render_DrawChest(Vector3 pos, float yaw, float lid, Vector3 light);
 float Render_Flicker(float time);

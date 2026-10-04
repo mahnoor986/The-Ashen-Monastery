@@ -1,4 +1,5 @@
-/* meshgen.c - CPU mesh builder for blocky geometry (see meshgen.h). */
+/* meshgen.c - CPU mesh builder (see meshgen.h): atlas-tile faces for small props and
+ * characters, free quads with world-space UVs for the architecture. */
 #include <string.h>
 #include <math.h>
 #include "meshgen.h"
@@ -84,6 +85,29 @@ void MB_Face(MeshBuilder *mb, Vector3 o, Vector3 a, Vector3 b, int tile, const C
         int i = order[k];
         PushVertex(mb, p[i], us[i], vs[i], n, c[i]);
     }
+}
+
+void MB_Quad(MeshBuilder *mb, const Vector3 p[4], const Vector2 uv[4], const Color light[4])
+{
+    Vector3 n = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(p[1], p[0]), Vector3Subtract(p[3], p[0])));
+    float shade = MB_FaceShade(n);
+    int k;
+    static const int order[6] = { 0, 1, 2, 0, 2, 3 };
+    if (Vector3Length(n) < 0.5f)        /* degenerate first corner: use the other diagonal */
+        n = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(p[2], p[1]), Vector3Subtract(p[0], p[1])));
+    Grow(mb, 6);
+    for (k = 0; k < 6; k++) {
+        int i = order[k];
+        PushVertex(mb, p[i], uv[i].x, uv[i].y, n, Encode(light[i], shade));
+    }
+}
+
+Vector2 MB_WorldUV(Vector3 p, Vector3 n)
+{
+    float ax = fabsf(n.x), ay = fabsf(n.y), az = fabsf(n.z);
+    if (ay >= ax && ay >= az) return (Vector2){ p.x * MAT_UV_SCALE, p.z * MAT_UV_SCALE };
+    if (ax >= az) return (Vector2){ p.z * MAT_UV_SCALE, -p.y * MAT_UV_SCALE };
+    return (Vector2){ p.x * MAT_UV_SCALE, -p.y * MAT_UV_SCALE };
 }
 
 void MB_Box(MeshBuilder *mb, Vector3 mn, Vector3 mx, int tile, Color light)

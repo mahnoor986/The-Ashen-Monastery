@@ -1,11 +1,11 @@
-/* world.c - loads a wing map (text grid), validates it, builds the chunked block meshes,
- * and answers collision / line-of-sight questions. See CLAUDE.md section 5 for the format. */
+/* world.c - loads a wing map (text grid), validates it, classifies rooms and corridors, and
+ * answers collision / line-of-sight / light questions. The 3D architecture built from the grid
+ * lives in architecture.c. See CLAUDE.md section 7.1 for the map format. */
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #include "world.h"
-#include "meshgen.h"
 #include "textures.h"
 #include "raymath.h"
 
@@ -15,29 +15,11 @@ static bool IsWallChar(char c)  { return c == '#' || c == 'W' || c == 'B' || c =
 static bool IsFloorChar(char c) { return c == '.' || c == '=' || c == ','; }
 static bool IsKnownChar(char c) { return IsWallChar(c) || IsFloorChar(c) || (c && strchr("x@CEsgwQOa", c)); }
 
-static int WallTile(char c)
+static int FloorMat(char c)
 {
-    switch (c) {
-    case 'W': return TILE_WOOD_WALL;
-    case 'B': return TILE_BOOKSHELF;
-    case 'P': return TILE_OBSIDIAN;
-    default:  return TILE_STONE_WALL;
-    }
-}
-
-static int FloorTile(char c)
-{
-    if (c == '=') return TILE_CARPET;
-    if (c == ',') return TILE_PLANK_FLOOR;
-    return TILE_STONE_FLOOR;
-}
-
-/* Deterministic pseudo-random 0..1 (decorations look the same every run). */
-static float Hash01(int x, int y, int seed)
-{
-    unsigned int h = (unsigned int)x * 73856093u ^ (unsigned int)y * 19349663u ^ (unsigned int)seed * 83492791u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return (float)((h ^ (h >> 16)) & 0xffffu) / 65535.0f;
+    if (c == '=') return MAT_CARPET;
+    if (c == ',') return MAT_WOOD;
+    return MAT_FLOOR;
 }
 
 static const int DX[4] = { 1, -1, 0, 0 };
@@ -192,7 +174,7 @@ static float OpenYaw(const World *w, int x, int z)
 }
 
 /* Special cells (@ C E s g w Q x) take the floor type of the nearest plain floor cell. */
-static int NearestFloorTile(const World *w, int sx, int sz)
+static int NearestFloorMat(const World *w, int sx, int sz)
 {
     static short qx[WORLD_MAX_W * WORLD_MAX_H], qz[WORLD_MAX_W * WORLD_MAX_H];
     static unsigned char seen[WORLD_MAX_H][WORLD_MAX_W];
@@ -203,7 +185,7 @@ static int NearestFloorTile(const World *w, int sx, int sz)
     while (head < tail) {
         int x = qx[head], z = qz[head];
         head++;
-        if (IsFloorChar(w->grid[z][x])) return FloorTile(w->grid[z][x]);
+        if (IsFloorChar(w->grid[z][x])) return FloorMat(w->grid[z][x]);
         for (d = 0; d < 4; d++) {
             int nx = x + DX[d], nz = z + DZ[d];
             if (!InBounds(w, nx, nz) || seen[nz][nx] || IsWallChar(w->grid[nz][nx])) continue;
@@ -211,7 +193,7 @@ static int NearestFloorTile(const World *w, int sx, int sz)
             qx[tail] = (short)nx; qz[tail] = (short)nz; tail++;
         }
     }
-    return TILE_STONE_FLOOR;
+    return MAT_FLOOR;
 }
 
 bool World_Load(World *w, const char *path, int expectedChests, bool needExit)
@@ -344,12 +326,12 @@ bool World_Load(World *w, const char *path, int expectedChests, bool needExit)
     }
     if (errors) return false;
 
-    /* ---- derived data: floor tiles, facings ---- */
+    /* ---- derived data: floor materials, facings ---- */
     for (z = 0; z < w->h; z++)
         for (x = 0; x < w->w; x++)
             if (!IsWallChar(w->grid[z][x]))
-                w->floorTile[z][x] = (unsigned char)(IsFloorChar(w->grid[z][x]) ? FloorTile(w->grid[z][x])
-                                                                                  : NearestFloorTile(w, x, z));
+                w->floorMat[z][x] = (unsigned char)(IsFloorChar(w->grid[z][x]) ? FloorMat(w->grid[z][x])
+                                                                                : NearestFloorMat(w, x, z));
     for (d = 0; d < w->exitCount; d++) {
         Cell e = w->exits[d];
         bool floorAlongX = !World_IsSolid(w, e.x + 1, e.z) || !World_IsSolid(w, e.x - 1, e.z);
@@ -364,7 +346,7 @@ bool World_Load(World *w, const char *path, int expectedChests, bool needExit)
     return true;
 }
 
-/* ------------------------------------------------------------ meshes */
+/* ------------------------------------------------------------ baked light */
 
 /* Is the straight path from a torch to point p free of walls? The last bit near p is skipped,
  * because vertices sit exactly on cell borders (next to their own wall). */
@@ -396,149 +378,4 @@ Vector3 World_LightAt(const World *w, Vector3 p)
     sum.y = fminf(sum.y, 1.0f);
     sum.z = fminf(sum.z, 1.0f);
     return sum;
-}
-
-/* Light arriving at a vertex, as a vertex color. */
-static Color LightAt(const World *w, Vector3 p)
-{
-    Vector3 l = World_LightAt(w, p);
-    return (Color){ (unsigned char)(l.x * 255.0f), (unsigned char)(l.y * 255.0f), (unsigned char)(l.z * 255.0f), 255 };
-}
-
-static void Face(MeshBuilder *mb, const World *w, Vector3 o, Vector3 a, Vector3 b, int tile)
-{
-    Color l[4];
-    l[0] = LightAt(w, o);
-    l[1] = LightAt(w, Vector3Add(o, a));
-    l[2] = LightAt(w, Vector3Add(Vector3Add(o, a), b));
-    l[3] = LightAt(w, Vector3Add(o, b));
-    MB_Face(mb, o, a, b, tile, l);
-}
-
-/* Box with half extents `along` (in direction n), `side` (across n) and `hy` (vertical). */
-static void OrientedBox(MeshBuilder *mb, const World *w, Vector3 c, Vector3 n, float along, float side, float hy, int tile)
-{
-    float hx = fabsf(n.x) > 0.5f ? along : side;
-    float hz = fabsf(n.x) > 0.5f ? side : along;
-    MB_Box(mb, (Vector3){ c.x - hx, c.y - hy, c.z - hz }, (Vector3){ c.x + hx, c.y + hy, c.z + hz },
-           tile, LightAt(w, c));
-}
-
-static void AddTorch(MeshBuilder *mb, const World *w, int x, int z, int d)
-{
-    Vector3 n = { (float)DX[d], 0.0f, (float)DZ[d] };
-    Vector3 wall = { x + 0.5f + n.x * 0.5f, TORCH_HEIGHT, z + 0.5f + n.z * 0.5f };
-    Vector3 stick = Vector3Add(wall, Vector3Scale(n, 0.16f));
-    stick.y = TORCH_HEIGHT - 0.25f;
-    OrientedBox(mb, w, (Vector3){ wall.x + n.x * 0.03f, TORCH_HEIGHT - 0.3f, wall.z + n.z * 0.03f },
-                n, 0.03f, 0.09f, 0.16f, TILE_IRON);                          /* wall plate */
-    OrientedBox(mb, w, (Vector3){ wall.x + n.x * 0.09f, TORCH_HEIGHT - 0.32f, wall.z + n.z * 0.09f },
-                n, 0.07f, 0.03f, 0.03f, TILE_IRON);                          /* arm */
-    OrientedBox(mb, w, stick, n, 0.045f, 0.045f, 0.17f, TILE_CEILING);      /* wooden handle */
-}
-
-/* Flame position for a torch on wall cell (x,z) facing direction d. */
-static Vector3 TorchFlame(int x, int z, int d)
-{
-    return (Vector3){ x + 0.5f + DX[d] * 0.66f, TORCH_HEIGHT, z + 0.5f + DZ[d] * 0.66f };
-}
-
-/* Every face of a 'T' wall that touches open floor carries a torch. Collected before meshing
- * so the baked light can use all of them. */
-static void CollectTorches(World *w)
-{
-    int x, z, d;
-    for (z = 0; z < w->h; z++) {
-        for (x = 0; x < w->w; x++) {
-            if (w->grid[z][x] != 'T') continue;
-            for (d = 0; d < 4; d++) {
-                int nx = x + DX[d], nz = z + DZ[d];
-                if (!InBounds(w, nx, nz) || IsWallChar(w->grid[nz][nx]) || w->torchCount >= MAX_TORCHES) continue;
-                w->torches[w->torchCount].pos = TorchFlame(x, z, d);
-                w->torches[w->torchCount].normal = (Vector3){ (float)DX[d], 0.0f, (float)DZ[d] };
-                w->torchCount++;
-            }
-        }
-    }
-}
-
-static void AddBones(MeshBuilder *mb, const World *w, int x, int z)
-{
-    int i;
-    for (i = 0; i < 6; i++) {
-        float px = x + 0.18f + 0.64f * Hash01(x, z, i * 3 + 1);
-        float pz = z + 0.18f + 0.64f * Hash01(x, z, i * 3 + 2);
-        float r = Hash01(x, z, i * 3 + 3);
-        Vector3 c = { px, 0.0f, pz };
-        if (i == 0) {          /* skull */
-            MB_Box(mb, (Vector3){ c.x - 0.12f, 0.0f, c.z - 0.11f }, (Vector3){ c.x + 0.12f, 0.22f, c.z + 0.11f },
-                   TILE_BONE, LightAt(w, c));
-        } else if (r < 0.5f) { /* long bone along x */
-            MB_Box(mb, (Vector3){ c.x - 0.2f, 0.0f, c.z - 0.035f }, (Vector3){ c.x + 0.2f, 0.06f, c.z + 0.035f },
-                   TILE_BONE, LightAt(w, c));
-        } else {               /* long bone along z */
-            MB_Box(mb, (Vector3){ c.x - 0.035f, 0.0f, c.z - 0.2f }, (Vector3){ c.x + 0.035f, 0.06f, c.z + 0.2f },
-                   TILE_BONE, LightAt(w, c));
-        }
-    }
-}
-
-static void BuildChunk(MeshBuilder *mb, const World *w, int cx, int cz)
-{
-    int x, z, d, k;
-    for (z = cz * CHUNK_SIZE; z < (cz + 1) * CHUNK_SIZE && z < w->h; z++) {
-        for (x = cx * CHUNK_SIZE; x < (cx + 1) * CHUNK_SIZE && x < w->w; x++) {
-            char c = w->grid[z][x];
-            if (IsWallChar(c)) {
-                /* wall faces only where they touch an open cell */
-                for (d = 0; d < 4; d++) {
-                    int nx = x + DX[d], nz = z + DZ[d];
-                    if (!InBounds(w, nx, nz) || IsWallChar(w->grid[nz][nx])) continue;
-                    for (k = 0; k < (int)WALL_HEIGHT; k++) {
-                        float y = (float)k;
-                        int tile = WallTile(c);
-                        if (d == 0)      Face(mb, w, (Vector3){ x + 1.0f, y, z + 1.0f }, (Vector3){ 0, 0, -1 }, (Vector3){ 0, 1, 0 }, tile);
-                        else if (d == 1) Face(mb, w, (Vector3){ (float)x, y, (float)z }, (Vector3){ 0, 0, 1 }, (Vector3){ 0, 1, 0 }, tile);
-                        else if (d == 2) Face(mb, w, (Vector3){ (float)x, y, z + 1.0f }, (Vector3){ 1, 0, 0 }, (Vector3){ 0, 1, 0 }, tile);
-                        else             Face(mb, w, (Vector3){ x + 1.0f, y, (float)z }, (Vector3){ -1, 0, 0 }, (Vector3){ 0, 1, 0 }, tile);
-                    }
-                    if (c == 'T') AddTorch(mb, w, x, z, d);
-                }
-            } else {
-                Face(mb, w, (Vector3){ (float)x, 0.0f, z + 1.0f }, (Vector3){ 1, 0, 0 }, (Vector3){ 0, 0, -1 }, w->floorTile[z][x]);
-                Face(mb, w, (Vector3){ (float)x, WALL_HEIGHT, (float)z }, (Vector3){ 1, 0, 0 }, (Vector3){ 0, 0, 1 }, TILE_CEILING);
-                if (c == 'x') AddBones(mb, w, x, z);
-            }
-        }
-    }
-}
-
-void World_BuildMeshes(World *w)
-{
-    MeshBuilder mb;
-    int cx, cz;
-    int ncx = (w->w + CHUNK_SIZE - 1) / CHUNK_SIZE, ncz = (w->h + CHUNK_SIZE - 1) / CHUNK_SIZE;
-
-    w->torchCount = 0;
-    w->chunkCount = 0;
-    w->vertexCount = 0;
-    CollectTorches(w);
-    for (cz = 0; cz < ncz; cz++) {
-        for (cx = 0; cx < ncx; cx++) {
-            Mesh m;
-            MB_Begin(&mb);
-            BuildChunk(&mb, w, cx, cz);
-            m = MB_End(&mb);
-            if (m.vertexCount == 0) continue;
-            w->vertexCount += m.vertexCount;
-            w->chunks[w->chunkCount++] = m;
-        }
-    }
-}
-
-void World_Unload(World *w)
-{
-    int i;
-    for (i = 0; i < w->chunkCount; i++) UnloadMesh(w->chunks[i]);
-    w->chunkCount = 0;
 }

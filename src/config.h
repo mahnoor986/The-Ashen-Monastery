@@ -42,6 +42,7 @@
 #define WALL_HEIGHT     4.0f            /* walls are 4 blocks tall; ceiling sits on top */
 #define CHUNK_SIZE      16              /* cells per mesh chunk side */
 #define MAX_CHUNKS      ((WORLD_MAX_W / CHUNK_SIZE + 1) * (WORLD_MAX_H / CHUNK_SIZE + 1))
+#define MAX_WORLD_PARTS (MAX_CHUNKS * 20)   /* meshes: one per (chunk, material) */
 #define MAX_TORCHES     128
 #define MAX_CHESTS      8
 #define MAX_EXIT_CELLS  4
