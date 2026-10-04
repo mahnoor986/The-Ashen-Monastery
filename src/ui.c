@@ -408,7 +408,7 @@ void UI_DrawVictory(const Game *g)
     for (i = 0; i < (int)(sizeof(credits) / sizeof(credits[0])); i++)
         UI_TextCentered(false, credits[i], SCREEN_W * 0.5f, 390.0f + i * 40.0f, i == 0 ? 30 : 24,
                         i == 0 ? COL_GOLD : COL_FADED);
-    UI_TextCentered(false, "Press Enter to return to the menu", SCREEN_W * 0.5f, 640, 28, COL_BONE);
+    UI_TextCentered(false, "Press Enter to return to the title", SCREEN_W * 0.5f, 640, 28, COL_BONE);
 }
 
 /* Master Oren's dialogue box. */
