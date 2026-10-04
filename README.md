@@ -2,8 +2,11 @@
 
 *Climb. Break the bells. Bring them home.*
 
-A third-person, retro PS1-style gothic horror game in **C99 + raylib 6.0**: low-poly gothic
-architecture with real textures, low-resolution wobbly rendering, moonlight and candlelight in fog.
+A third-person, retro PS1-style gothic horror game written from scratch in **C99 + raylib 6.0**:
+low-poly gothic architecture with real textures, low-resolution wobbly rendering, moonlight and
+candlelight in fog. Built as a college project.
+
+![Title screen](docs/screenshots/title.png)
 
 > High on a storm-swept mountain stands the Ashen Monastery, a gothic castle and school for young
 > mages. Ten nights ago its Abbot made a pact with fire and became **the Red Abbot**. He cast **five
@@ -12,6 +15,26 @@ architecture with real textures, low-resolution wobbly rendering, moonlight and 
 > Master **Oren** and the other apprentices are trapped in the **Sanctum** at the summit. You are
 > **Kael**, the youngest apprentice, armed with a wand. Climb the monastery, destroy the relics,
 > break the bells, free the serpent's cage and end the Red Abbot.
+
+## Download and play (Windows)
+
+No installation, no code, no commands.
+
+1. Go to the **[latest release](https://github.com/YOUR-USERNAME/the-ashen-monastery/releases/latest)**
+   and download **`AshenMonastery_Windows.zip`**.
+2. Right-click the zip → **Extract All** (don't run it from inside the zip).
+3. Open the extracted folder and double-click **`AshenMonastery.exe`**.
+4. If Windows shows **"Windows protected your PC"**, click **More info → Run anyway**.
+   This appears for any game that isn't signed by a big publisher.
+
+Requirements: Windows 10 or 11, any graphics card from the last ~10 years (OpenGL 3.3).
+
+## Screenshots
+
+| | |
+|---|---|
+| ![The Ash Gate](docs/screenshots/wing1.png) | ![The Scriptorium](docs/screenshots/wing3.png) |
+| ![The Bell Tower](docs/screenshots/wing5.png) | ![The Sanctum](docs/screenshots/sanctum.png) |
 
 ## How to play
 
@@ -41,7 +64,7 @@ architecture with real textures, low-resolution wobbly rendering, moonlight and 
 | Esc or P | pause (Resume / Restart wing / Quit to title) |
 | Enter | confirm, skip the intro, advance dialogue, rise again after falling |
 
-### Debug keys (kept in the final build)
+### Debug keys
 
 | Key | Action |
 |-----|--------|
@@ -51,7 +74,7 @@ architecture with real textures, low-resolution wobbly rendering, moonlight and 
 | F4 | complete the current wing instantly (chests, relic, cage, serpent, Abbot) |
 | F6 | show FPS |
 
-### Enemies
+## Enemies
 
 | Enemy | |
 |-------|--|
@@ -63,18 +86,36 @@ architecture with real textures, low-resolution wobbly rendering, moonlight and 
 
 ## The wings
 
-1. **The Ash Gate** - entrance halls and cloisters, 3 chests, the Ashbound Grimoire.
-2. **The Hall of Prayer** - a great dining hall and dormitories, 4 chests, the Ember Ring.
-3. **The Scriptorium** - bookcases and a tower study, 4 chests, the Moonsilver Locket.
-4. **The Ossuary** - alchemy vaults and crypts, 5 chests, the Chalice of Cinders.
-5. **The Bell Tower** - the great bell, the caged serpent and the Red Abbot, 5 chests, the Thorned Crown.
-6. **The Sanctum** - the ending.
+1. **The Ash Gate** — entrance halls and cloisters, 3 chests, the Ashbound Grimoire.
+2. **The Hall of Prayer** — a great dining hall and dormitories, 4 chests, the Ember Ring.
+3. **The Scriptorium** — bookcases and a tower study, 4 chests, the Moonsilver Locket.
+4. **The Ossuary** — alchemy vaults and crypts, 5 chests, the Chalice of Cinders.
+5. **The Bell Tower** — the great bell, the caged serpent and the Red Abbot, 5 chests, the Thorned Crown.
+6. **The Sanctum** — the ending.
 
-## Building (Windows)
+## Technical highlights
+
+- **No game engine:** everything (rendering, physics, AI, UI, audio) is written in C on top of raylib.
+- **Levels from text files:** each wing is a plain-text grid; the game turns it into gothic architecture
+  (pointed arches, plinths, cornices, pilasters, ribbed vaults, beams, stained-glass windows) and places
+  furniture automatically by room type.
+- **PS1 rendering pipeline:** the scene renders at 640×360 with affine texture mapping, vertex snapping
+  and ordered dithering, then a post-process shader adds a moonlit color grade, film grain and vignette.
+- **Per-pixel lighting:** the 16 most relevant lights (candles, lanterns, fireplaces, moonlit windows)
+  are chosen every frame; candles flicker, lightning flashes through the windows.
+- **Code-built characters and props:** all characters, relics and furniture are built from low-poly
+  shapes in code; optional `.glb` models can replace any of them (see `assets/models/README.txt`).
+- **Synthesized audio:** the wand crack, bells, thunder, wind and serpent hiss are generated in code.
+- **Self-testing:** `--autotest` plays through wing 1 and the whole Bell Tower with scripted input and
+  saves screenshots; `--tour` captures every wing and measures FPS.
+
+## Building from source (Windows)
 
 You need **w64devkit** (gcc + make) and **raylib 6.0** for MinGW-w64.
 
 ```
+git clone https://github.com/mahnoor986/the-ashen-monastery.git
+cd the-ashen-monastery
 make                 # debug build -> AshenMonastery.exe
 make run             # build and run
 make autotest        # build and run the self-test (screenshots in shots/)
@@ -99,7 +140,7 @@ Command-line options:
 
 Progress is saved in `save.txt` (the highest wing reached); the title menu then offers **Continue**.
 
-## Files
+## Project structure
 
 ```
 src/main.c          window, main loop, command-line flags
@@ -131,11 +172,23 @@ assets/textures/    Poly Haven photo textures (optional; generated fallbacks)
 assets/models/      optional .glb replacements (see README.txt there)
 assets/fonts/       Pirata One, Crimson Text
 assets/audio/       Kenney sound packs, OpenGameArt ghost sounds and ambience
-reference/          mood photos used as a palette/lighting reference (not shipped in the game)
+docs/screenshots/   screenshots used in this README
 docs/old_specs/     earlier design documents
 legacy_2d/          the original 2D version of this project (not compiled)
 ```
 
-See `CREDITS.md` for assets, `NOTES.md` for design decisions and status, `CLAUDE.md` for the spec.
-Earlier versions are tagged in git: `submittable` (Blackthorn Manor), `environment-done`,
-`title-done`, `relics-done`, `final`.
+## Project history
+
+This project started as **Gothic Dungeon**, a 2D top-down dungeon crawler (kept in `legacy_2d/`),
+became **Blackthorn Manor**, a 3D block-style horror game, and was then rebuilt into
+**The Ashen Monastery** with a PS1-style gothic castle. Each stage is tagged in git:
+`submittable` (Blackthorn Manor), `environment-done`, `title-done`, `relics-done`, `final`.
+
+## Credits
+
+Code and design: **MAHNOOR** (with AI pair-programming assistance).
+Fonts: Pirata One and Crimson Text (SIL Open Font License, Google Fonts).
+Sounds: Kenney RPG Audio and Impact Sounds (CC0); OpenGameArt ghost voices by qubodup, Scary High-pitched
+Ghost by Fupi, Loopable Dungeon Ambience by JaggedStone (CC0). Textures: Poly Haven (CC0).
+Full list in [`CREDITS.md`](CREDITS.md). Design decisions and status: [`NOTES.md`](NOTES.md).
+Original spec: [`CLAUDE.md`](CLAUDE.md).

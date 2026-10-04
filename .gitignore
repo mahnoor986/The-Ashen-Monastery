@@ -3,10 +3,21 @@ build/
 *.exe
 *.o
 *.d
+dist/
 
 # runtime files
+shots/
 save.txt
-shots/*.png
+
+# private mood references (not ours to publish)
+reference/
+
+# local Claude Code settings
+.claude/settings.local.json
 
 # original downloaded archives (extracted copies are committed)
 assets/**/*.zip
+
+# Windows clutter
+Thumbs.db
+desktop.ini
