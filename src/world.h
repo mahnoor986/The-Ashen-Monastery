@@ -27,6 +27,13 @@ typedef struct {
     int  mat;            /* MaterialId */
 } WorldPart;
 
+/* An exit doorway: the opening from a to b (floor points) seen from inside the wing; the two
+ * door leaves hinge at a and b and swing toward `inward`. */
+typedef struct {
+    Vector3 a, b, inward;
+    float   spring, top;  /* pointed arch: starts curving at spring, apex at top */
+} Doorway;
+
 typedef struct {
     Vector3 pos;         /* flame position */
     Vector3 normal;      /* direction the torch sticks out of the wall */
@@ -46,13 +53,16 @@ typedef struct {
     Cell  exits[MAX_EXIT_CELLS]; int exitCount;
     float exitYaw[MAX_EXIT_CELLS];           /* door slab rotation (0 = slab faces +-Z) */
     bool  exitOpen;                          /* door no longer blocks */
-    float doorSlide;                         /* 0 = closed, 1 = fully sunk into the floor */
+    float doorSlide;                         /* door leaves: 0 = closed, 1 = swung fully open */
+    Doorway doorways[MAX_EXIT_CELLS]; int doorwayCount;
     Spawn spawns[MAX_SPAWNS];    int spawnCount;
     Spawn npcs[MAX_NPCS];        int npcCount;   /* 'O' Master Oren, 'a' apprentices/monks */
     Torch torches[MAX_TORCHES];  int torchCount;
     unsigned char area[WORLD_MAX_H][WORLD_MAX_W];   /* AREA_* of every cell */
     unsigned char roomId[WORLD_MAX_H][WORLD_MAX_W]; /* 1-based room index, 0 = not a room */
+    unsigned char island[WORLD_MAX_H][WORLD_MAX_W]; /* free-standing wall block inside a room */
     Room  rooms[MAX_ROOMS];      int roomCount;
+    float ceiling[WORLD_MAX_H][WORLD_MAX_W];       /* lowest ceiling over each open cell */
 
     WorldPart parts[MAX_WORLD_PARTS]; int partCount;   /* one mesh per (chunk, material) */
     int   chunkCount;                        /* chunks that have any geometry */
@@ -73,6 +83,8 @@ bool World_IsWallCell(const World *w, int x, int z);       /* full-height wall b
 void World_Move(const World *w, Vector3 *pos, float size, Vector3 delta);
 bool World_BoxBlocked(const World *w, float cx, float cz, float size);
 bool World_LineOfSight(const World *w, Vector3 a, Vector3 b);
+/* Lowest ceiling height over the cell at (x, z) (corridor height for walls / outside). */
+float World_CeilingAt(const World *w, float x, float z);
 /* Baked torch light (0..1 rgb) arriving at point p; also used to light characters. */
 Vector3 World_LightAt(const World *w, Vector3 p);
 

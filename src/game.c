@@ -510,7 +510,7 @@ static void CastLightning(Game *g, const Input *in)
         aim = Vector3Add(g->rig.cam.position, Vector3Scale(fwd, WAND_RANGE + g->rig.dist));
         for (t = g->rig.dist + 0.5f; t < WAND_RANGE + g->rig.dist; t += 0.1f) {
             Vector3 q = Vector3Add(g->rig.cam.position, Vector3Scale(fwd, t));
-            if (World_IsWallCell(&g->world, (int)floorf(q.x), (int)floorf(q.z)) || q.y < 0.0f || q.y > WALL_HEIGHT) { aim = q; break; }
+            if (World_IsWallCell(&g->world, (int)floorf(q.x), (int)floorf(q.z)) || q.y < 0.0f || q.y > World_CeilingAt(&g->world, q.x, q.z)) { aim = q; break; }
         }
     }
     dir = Vector3Subtract(aim, origin);
@@ -521,7 +521,7 @@ static void CastLightning(Game *g, const Input *in)
     hit = Vector3Add(origin, Vector3Scale(dir, WAND_RANGE));
     for (t = 0.0f; t < WAND_RANGE && hitEnemy < 0; t += 0.1f) {
         Vector3 p = Vector3Add(origin, Vector3Scale(dir, t));
-        if (World_IsWallCell(&g->world, (int)floorf(p.x), (int)floorf(p.z)) || p.y < 0.0f || p.y > WALL_HEIGHT) { hit = p; break; }
+        if (World_IsWallCell(&g->world, (int)floorf(p.x), (int)floorf(p.z)) || p.y < 0.0f || p.y > World_CeilingAt(&g->world, p.x, p.z)) { hit = p; break; }
         for (i = 0; i < MAX_BOLTS; i++) {
             Bolt *b = &g->bolts[i];
             if (b->active && Vector3Distance(b->pos, p) < 0.4f) {
@@ -1090,7 +1090,7 @@ static int FlowTest(Game *g)
     }
     fails += Check(g->world.exitOpen, "exit door opens after the last chest");
     Simulate(g, &none, DOOR_OPEN_TIME + 0.2f);
-    fails += Check(g->world.doorSlide >= 1.0f, "door slides into the floor");
+    fails += Check(g->world.doorSlide >= 1.0f, "both door leaves swing open");
 
     /* walk through the exit */
     StandNextTo(g, g->world.exits[0]);
@@ -1289,6 +1289,35 @@ static void BossShot(Game *g)
     g->player.god = false;
 }
 
+/* The wing 1 exit door, half open, seen from a few steps inside. */
+static void DoorShot(Game *g)
+{
+    Input none = { 0 };
+    const Doorway *d;
+    Vector3 mid;
+    Game_NewGame(g, 0);
+    g->player.god = true;
+    if (g->world.doorwayCount == 0) return;
+    d = &g->world.doorways[0];
+    mid = Vector3Scale(Vector3Add(d->a, d->b), 0.5f);
+    g->player.pos = Vector3Add(mid, Vector3Scale(d->inward, 3.2f));
+    g->player.yaw = g->rig.yaw = YawTo(g->player.pos, mid);
+    g->rig.pitch = 0.12f;
+    g->world.exitOpen = true;
+    g->world.doorSlide = 0.45f;
+    g->enemyCount = 0;
+    g->bannerCount = 0;
+    g->fade = 0.0f;
+    CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
+    g->leaving = true;                     /* keeps UpdateExit from moving the door further */
+    g->fade = 0.0f;
+    Game_Draw(g);
+    Screen_Save("shots/door.png");
+    (void)none;
+    g->leaving = false;
+    g->player.god = false;
+}
+
 /* Every enemy type standing in front of the player (camera behind the player). */
 static void EnemyShowcase(Game *g)
 {
@@ -1408,11 +1437,24 @@ int Game_Tour(Game *g)
         /* 2: the largest room, looking at its longest wall from the middle */
         for (i = 0; i < w->roomCount; i++) if (!big || w->rooms[i].cells > big->cells) big = &w->rooms[i];
         if (big) {
-            float cx = (big->x0 + big->x1 + 1) * 0.5f, cz = (big->z0 + big->z1 + 1) * 0.5f;
-            bool alongX = (big->x1 - big->x0) >= (big->z1 - big->z0);   /* longest walls run along X */
-            yaw = alongX ? PI : -PI * 0.5f;                             /* face the north or west wall */
-            Place(g, cx - sinf(yaw) * 1.5f, cz - cosf(yaw) * 1.5f, yaw, 0.08f);
-            if (World_IsSolid(w, (int)g->player.pos.x, (int)g->player.pos.z)) Place(g, cx, cz, yaw, 0.08f);
+            /* stand near the middle facing a wall (longest first); nudge sideways until the
+             * camera behind Kael has room (pillars, islands) */
+            float cx = (big->x0 + big->x1 + 1) * 0.5f, cz = (big->z0 + big->z1 + 1) * 0.5f, bestDist = -1.0f;
+            bool alongX = (big->x1 - big->x0) >= (big->z1 - big->z0);
+            float yaws[2] = { alongX ? PI : -PI * 0.5f, alongX ? -PI * 0.5f : PI }, bx = cx, bz = cz, byaw = yaws[0];
+            int k, s;
+            for (k = 0; k < 2; k++) {
+                for (s = 0; s < 7; s++) {
+                    float side = (s % 2 ? 1.0f : -1.0f) * ((s + 1) / 2) * 0.75f;
+                    float y = yaws[k], px = cx - sinf(y) * 1.5f + cosf(y) * side, pz = cz - cosf(y) * 1.5f - sinf(y) * side;
+                    if (World_BoxBlocked(w, px, pz, PLAYER_SIZE)) continue;
+                    Place(g, px, pz, y, 0.08f);
+                    CameraRig_Update(&g->rig, &g->player, w, NULL, 1.0f);
+                    if (g->rig.dist > bestDist + 0.3f) { bestDist = g->rig.dist; bx = px; bz = pz; byaw = y; }
+                }
+                if (bestDist > CAM_DISTANCE - 0.3f) break;
+            }
+            Place(g, bx, bz, byaw, 0.08f);
         }
         seconds += TourShot(g, TextFormat("shots/tour_w%d_2.png", wing + 1), &frames);
 
@@ -1484,6 +1526,7 @@ int Game_Autotest(Game *g)
         failures += QueenTest(g);
         failures += SanctumTest(g);
         BossShot(g);
+        DoorShot(g);
     } else {
         failures++;
     }

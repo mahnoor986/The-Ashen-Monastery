@@ -39,7 +39,18 @@
 /* ----------------------------------------------------------------- world */
 #define WORLD_MAX_W     56              /* max wing map width in cells */
 #define WORLD_MAX_H     40              /* max wing map height in cells */
-#define WALL_HEIGHT     4.0f            /* walls are 4 blocks tall; ceiling sits on top */
+#define ROOM_HEIGHT     6.0f            /* rooms are this tall (vault apex / flat ceiling) */
+#define CORRIDOR_HEIGHT 3.5f            /* corridors and doorways */
+#define VAULT_SPRING    4.3f            /* ribbed vaults start curving at this height */
+#define VAULT_MIN_ROOM  8               /* rooms of 8x8 cells or more get ribbed vaults */
+#define PLINTH_HEIGHT   0.4f            /* stone base along the walls */
+#define PLINTH_DEPTH    0.08f
+#define CORNICE_HEIGHT  0.3f            /* moulding at the top of the walls */
+#define CORNICE_DEPTH   0.15f
+#define BOOKSHELF_HEIGHT 2.5f           /* 'B' walls: shelves up to here */
+#define ARCH_SEGMENTS   7               /* segments per side of a pointed arch */
+#define ARCH_SPRING_MIN 2.2f            /* arches never start curving lower than this */
+#define ARCH_MAX_WIDTH  4.0f            /* wider openings get a straight lintel instead */
 #define CHUNK_SIZE      16              /* cells per mesh chunk side */
 #define MAX_CHUNKS      ((WORLD_MAX_W / CHUNK_SIZE + 1) * (WORLD_MAX_H / CHUNK_SIZE + 1))
 #define MAX_WORLD_PARTS (MAX_CHUNKS * 20)   /* meshes: one per (chunk, material) */
@@ -49,6 +60,7 @@
 #define MAX_SPAWNS      64
 #define MAX_ROOMS       32
 #define ROOM_MIN_OPEN   4               /* a floor cell inside an open 4x4 area belongs to a room */
+#define ISLAND_MAX_CELLS 16             /* free-standing wall groups up to this size don't split rooms */
 #define TORCH_HEIGHT    2.3f            /* flame height above the floor */
 #define TORCH_RADIUS    7.0f            /* how far baked torch light reaches */
 #define TORCH_INTENSITY 1.7f            /* brightness of one torch right next to it */
@@ -75,7 +87,7 @@
 #define CAM_PITCH_MAX       15.0f       /* degrees, most upward look */
 #define CAM_PITCH_DEFAULT   (-14.0f)    /* degrees, starting pitch */
 #define CAM_MIN_Y           0.2f        /* camera never goes below this */
-#define CAM_MAX_Y           3.8f        /* camera never goes above this (ceiling is 4.0) */
+#define CAM_CEILING_MARGIN  0.45f       /* camera stays this far below the local ceiling (and its beams) */
 #define CAM_WALL_MARGIN     0.18f       /* keep this far from walls so the near plane doesn't clip */
 #define CAM_RETURN_SPEED    4.0f        /* how fast the camera eases back out after a wall pushed it in */
 #define MOUSE_SENSITIVITY   0.0035f     /* radians per pixel of mouse movement */

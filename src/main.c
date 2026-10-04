@@ -12,6 +12,7 @@
 #include "screen.h"
 #include "input.h"
 #include "game.h"
+#include "render.h"
 
 int main(int argc, char **argv)
 {
@@ -22,6 +23,7 @@ int main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--autotest") == 0) autotest = true;
         else if (strcmp(argv[i], "--tour") == 0) tour = true;
+        else if (strcmp(argv[i], "--bright") == 0) Render_SetDebugBright(true);
         else if (strcmp(argv[i], "--sanctum") == 0) { startWing = WING_COUNT; directStart = true; }
         else if (strcmp(argv[i], "--wing") == 0 && i + 1 < argc) { startWing = atoi(argv[++i]) - 1; directStart = true; }
     }

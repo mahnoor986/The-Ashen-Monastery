@@ -144,7 +144,7 @@ void CameraRig_Init(CameraRig *rig, float yaw)
 static bool CameraBlocked(const World *w, Vector3 q)
 {
     const float m = CAM_WALL_MARGIN;
-    if (q.y < CAM_MIN_Y || q.y > CAM_MAX_Y) return true;
+    if (q.y < CAM_MIN_Y || q.y > World_CeilingAt(w, q.x, q.z) - CAM_CEILING_MARGIN) return true;
     return World_IsWallCell(w, (int)floorf(q.x - m), (int)floorf(q.z - m)) ||
            World_IsWallCell(w, (int)floorf(q.x + m), (int)floorf(q.z - m)) ||
            World_IsWallCell(w, (int)floorf(q.x - m), (int)floorf(q.z + m)) ||

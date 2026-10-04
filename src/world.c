@@ -89,6 +89,13 @@ bool World_LineOfSight(const World *w, Vector3 a, Vector3 b)
     return true;
 }
 
+float World_CeilingAt(const World *w, float x, float z)
+{
+    int cx = (int)floorf(x), cz = (int)floorf(z);
+    if (!InBounds(w, cx, cz) || w->ceiling[cz][cx] <= 0.0f) return CORRIDOR_HEIGHT;
+    return w->ceiling[cz][cx];
+}
+
 /* ------------------------------------------------------------ rooms and corridors */
 
 /* Open for architecture: everything except walls (pillars stand inside rooms, so they count). */
@@ -96,12 +103,46 @@ static bool IsOpenForArea(char c) { return !IsWallChar(c) || c == 'P'; }
 
 /* Room cells lie inside some fully open ROOM_MIN_OPEN x ROOM_MIN_OPEN square; all other open
  * cells are corridor cells. Connected room cells form one Room. */
+/* Islands: small groups of wall cells standing free inside a room (bookcases, piers) that do not
+ * touch the outer walls. Rooms extend around them. */
+static void FindIslands(World *w)
+{
+    static short qx[WORLD_MAX_W * WORLD_MAX_H], qz[WORLD_MAX_W * WORLD_MAX_H];
+    static unsigned char seen[WORLD_MAX_H][WORLD_MAX_W];
+    int x, z, d;
+    memset(seen, 0, sizeof(seen));
+    memset(w->island, 0, sizeof(w->island));
+    for (z = 0; z < w->h; z++) {
+        for (x = 0; x < w->w; x++) {
+            int head = 0, tail = 0, k;
+            bool border = false;
+            if (seen[z][x] || !IsWallChar(w->grid[z][x]) || w->grid[z][x] == 'P') continue;
+            seen[z][x] = 1;
+            qx[tail] = (short)x; qz[tail] = (short)z; tail++;
+            while (head < tail) {
+                int cx = qx[head], cz = qz[head];
+                head++;
+                if (cx == 0 || cz == 0 || cx == w->w - 1 || cz == w->h - 1) border = true;
+                for (d = 0; d < 4; d++) {
+                    int nx = cx + DX[d], nz = cz + DZ[d];
+                    if (!InBounds(w, nx, nz) || seen[nz][nx] || !IsWallChar(w->grid[nz][nx]) || w->grid[nz][nx] == 'P') continue;
+                    seen[nz][nx] = 1;
+                    qx[tail] = (short)nx; qz[tail] = (short)nz; tail++;
+                }
+            }
+            if (border || tail > ISLAND_MAX_CELLS) continue;
+            for (k = 0; k < tail; k++) w->island[qz[k]][qx[k]] = 1;
+        }
+    }
+}
+
 static void ClassifyAreas(World *w)
 {
     static short qx[WORLD_MAX_W * WORLD_MAX_H], qz[WORLD_MAX_W * WORLD_MAX_H];
     const int n = ROOM_MIN_OPEN;
     int x, z, i, j, d;
 
+    FindIslands(w);
     memset(w->area, AREA_SOLID, sizeof(w->area));
     memset(w->roomId, 0, sizeof(w->roomId));
     w->roomCount = 0;
@@ -113,12 +154,16 @@ static void ClassifyAreas(World *w)
             bool open = true;
             for (j = 0; j < n && open; j++)
                 for (i = 0; i < n && open; i++)
-                    if (w->area[z + j][x + i] == AREA_SOLID) open = false;
+                    if (w->area[z + j][x + i] == AREA_SOLID && !w->island[z + j][x + i]) open = false;
             if (!open) continue;
             for (j = 0; j < n; j++)
-                for (i = 0; i < n; i++) w->area[z + j][x + i] = AREA_ROOM;
+                for (i = 0; i < n; i++)
+                    if (w->area[z + j][x + i] != AREA_SOLID) w->area[z + j][x + i] = AREA_ROOM;
         }
     }
+    for (z = 0; z < w->h; z++)                     /* exit doorways are short corridor passages */
+        for (x = 0; x < w->w; x++)
+            if (w->grid[z][x] == 'E') w->area[z][x] = AREA_CORRIDOR;
     for (z = 0; z < w->h; z++) {
         for (x = 0; x < w->w; x++) {
             int head = 0, tail = 0;

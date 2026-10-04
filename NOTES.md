@@ -264,3 +264,23 @@ Decisions made while building, and things worth knowing.
   per 2 units). `architecture.c` (new) builds one mesh per (16x16 chunk, material); faces are
   split into ~1x1 quads. The old atlas stays only for characters, chests and the door.
 - Cobwebs (alpha) are drawn in a transparent pass without depth writes.
+
+## Item 6 - Architecture from the grid
+- `architecture.c` builds everything from the grid: rooms 6.0 tall, corridors 3.5; lintel walls
+  where corridors open into rooms; pointed two-centred arches (radius 0.75 x span, 7 segments per
+  side, spring >= 2.2, stone infill both sides, trim band + jambs on the room side; openings wider
+  than 4 get a straight lintel); plinth (0.4) + cornice (0.3) on every wall; pilasters every 4
+  cells on long room walls (vaulted rooms: where the bays meet); 'P' = 8-sided columns with base
+  and capital; trim posts on outer wall corners; flat rooms get beams every 2 units, rooms of 8x8+
+  get groin vaults (max of two pointed barrel profiles per ~4x4 bay, springing at 4.3) with
+  diagonal + transverse ribs; corridors get a beam every 3 units; carpets have a gold edge.
+- Room detection ignores "islands" (small wall groups not touching the outer walls, e.g. the
+  Scriptorium's bookcases), so rooms extend around them; 'B' islands render as free-standing
+  2.6-tall bookcases with a top board.
+- Exit doorways are short corridor passages; their opening gets a pointed arch and two door
+  leaves (wood + iron straps + ring handles) that swing inward when the wing's exit opens
+  (`doorSlide` now means swing amount). `World.doorways[]` records where they are.
+- Reliquary chests are rebuilt low-poly: wooden body on iron feet, iron corner bands, lock plate,
+  curved 6-segment lid with iron bands, hinged at the back.
+- Camera: stays 0.45 below the local ceiling (`World_CeilingAt`); the lightning ray stops there too.
+- Dev flag `--bright` (flat bright ambient) to inspect geometry in screenshots; `shots/door.png`.

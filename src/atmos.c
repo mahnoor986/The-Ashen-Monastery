@@ -9,7 +9,7 @@ void Atmos_Reset(Atmos *a, Vector3 center)
 {
     int i;
     for (i = 0; i < ASH_COUNT; i++) {
-        a->ash[i].pos = (Vector3){ center.x + Rand(-ASH_RANGE, ASH_RANGE), Rand(0.0f, WALL_HEIGHT),
+        a->ash[i].pos = (Vector3){ center.x + Rand(-ASH_RANGE, ASH_RANGE), Rand(0.0f, CORRIDOR_HEIGHT),
                                    center.z + Rand(-ASH_RANGE, ASH_RANGE) };
         a->ash[i].phase = Rand(0.0f, 6.28f);
     }
@@ -33,7 +33,7 @@ void Atmos_Update(Atmos *a, Vector3 center, const World *w, float dt)
         f->pos.x += (ASH_WIND_X + sinf(a->time * 0.9f + f->phase) * 0.25f) * dt;
         f->pos.z += (ASH_WIND_Z + cosf(a->time * 0.7f + f->phase) * 0.20f) * dt;
         f->pos.y -= ASH_FALL_SPEED * (0.7f + 0.3f * sinf(f->phase)) * dt;
-        if (f->pos.y < 0.0f) f->pos.y += WALL_HEIGHT;
+        if (f->pos.y < 0.0f) f->pos.y += CORRIDOR_HEIGHT;
         f->pos.x = WrapAround(f->pos.x, center.x, ASH_RANGE);
         f->pos.z = WrapAround(f->pos.z, center.z, ASH_RANGE);
     }
