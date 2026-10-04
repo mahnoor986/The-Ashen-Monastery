@@ -107,6 +107,64 @@ bool World_LineOfSight(const World *w, Vector3 a, Vector3 b)
     return true;
 }
 
+/* ------------------------------------------------------------ rooms and corridors */
+
+/* Open for architecture: everything except walls (pillars stand inside rooms, so they count). */
+static bool IsOpenForArea(char c) { return !IsWallChar(c) || c == 'P'; }
+
+/* Room cells lie inside some fully open ROOM_MIN_OPEN x ROOM_MIN_OPEN square; all other open
+ * cells are corridor cells. Connected room cells form one Room. */
+static void ClassifyAreas(World *w)
+{
+    static short qx[WORLD_MAX_W * WORLD_MAX_H], qz[WORLD_MAX_W * WORLD_MAX_H];
+    const int n = ROOM_MIN_OPEN;
+    int x, z, i, j, d;
+
+    memset(w->area, AREA_SOLID, sizeof(w->area));
+    memset(w->roomId, 0, sizeof(w->roomId));
+    w->roomCount = 0;
+    for (z = 0; z < w->h; z++)
+        for (x = 0; x < w->w; x++)
+            if (IsOpenForArea(w->grid[z][x]) && w->grid[z][x] != 'E') w->area[z][x] = AREA_CORRIDOR;
+    for (z = 0; z + n <= w->h; z++) {
+        for (x = 0; x + n <= w->w; x++) {
+            bool open = true;
+            for (j = 0; j < n && open; j++)
+                for (i = 0; i < n && open; i++)
+                    if (w->area[z + j][x + i] == AREA_SOLID) open = false;
+            if (!open) continue;
+            for (j = 0; j < n; j++)
+                for (i = 0; i < n; i++) w->area[z + j][x + i] = AREA_ROOM;
+        }
+    }
+    for (z = 0; z < w->h; z++) {
+        for (x = 0; x < w->w; x++) {
+            int head = 0, tail = 0;
+            Room *r;
+            if (w->area[z][x] != AREA_ROOM || w->roomId[z][x] || w->roomCount >= MAX_ROOMS) continue;
+            r = &w->rooms[w->roomCount++];
+            *r = (Room){ x, z, x, z, 0 };
+            w->roomId[z][x] = (unsigned char)w->roomCount;
+            qx[tail] = (short)x; qz[tail] = (short)z; tail++;
+            while (head < tail) {
+                int cx = qx[head], cz = qz[head];
+                head++;
+                r->cells++;
+                if (cx < r->x0) r->x0 = cx;
+                if (cx > r->x1) r->x1 = cx;
+                if (cz < r->z0) r->z0 = cz;
+                if (cz > r->z1) r->z1 = cz;
+                for (d = 0; d < 4; d++) {
+                    int nx = cx + DX[d], nz = cz + DZ[d];
+                    if (!InBounds(w, nx, nz) || w->area[nz][nx] != AREA_ROOM || w->roomId[nz][nx]) continue;
+                    w->roomId[nz][nx] = (unsigned char)w->roomCount;
+                    qx[tail] = (short)nx; qz[tail] = (short)nz; tail++;
+                }
+            }
+        }
+    }
+}
+
 /* ------------------------------------------------------------ loading */
 
 static int Report(const char *file, int line, int col, const char *fmt, ...)
@@ -300,6 +358,7 @@ bool World_Load(World *w, const char *path, int expectedChests, bool needExit)
     for (d = 0; d < w->chestCount; d++)
         w->chestYaw[d] = OpenYaw(w, w->chests[d].x, w->chests[d].z);
     w->startYaw = OpenYaw(w, (int)w->start.x, (int)w->start.z);
+    ClassifyAreas(w);
     for (d = 0; d < w->spawnCount; d++)
         w->spawns[d].yaw = OpenYaw(w, (int)w->spawns[d].pos.x, (int)w->spawns[d].pos.z);
     return true;

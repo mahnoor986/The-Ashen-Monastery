@@ -818,7 +818,10 @@ void Game_Init(Game *g, int startWing, bool directStart, bool autotest)
     g->savedWing = autotest ? 0 : LoadSave();
 
     if (autotest) return;
-    if (directStart) Game_NewGame(g, startWing);
+    if (directStart && startWing >= WING_COUNT) {          /* --sanctum / --wing 6 */
+        if (Game_LoadSanctum(g)) SetMouseCaptured(g, true);
+        else EnterMenu(g);
+    } else if (directStart) Game_NewGame(g, startWing);
     else EnterMenu(g);
 }
 
@@ -1019,7 +1022,7 @@ void Game_Draw(Game *g)
     Post_Draw(g->time, g->sanctum ? 1 : 0, g->redPulse);
     switch (g->state) {
     case STATE_MENU:      UI_DrawMenu(g); break;
-    case STATE_PLAYING:   UI_DrawHUD(g); break;
+    case STATE_PLAYING:   if (!g->hideHud) UI_DrawHUD(g); break;
     case STATE_PAUSED:    UI_DrawHUD(g); UI_DrawPause(g); break;
     case STATE_INVENTORY: UI_DrawInventory(g); break;
     case STATE_DEAD:      UI_DrawDeath(g); break;
@@ -1323,6 +1326,107 @@ static void EnemyShowcase(Game *g)
     Post_Draw(g->time, 0, 0.0f);
     UI_TextCentered(false, "Ashen Monk  -  Choir Wraith  -  Ember Priest (winding up)  -  The Red Abbot", SCREEN_W * 0.5f, 16, 30, COL_BONE);
     Screen_End();
+}
+
+/* ============================================================ --tour */
+
+/* Draw a few frames from the current placement (no input) and save the last one. */
+static double TourShot(Game *g, const char *path, int *frames)
+{
+    Input none = { 0 };
+    char file[64];
+    double t0, took;
+    int f;
+    TextCopy(file, path);              /* TextFormat's buffer is reused while drawing */
+    g->bannerCount = 0;
+    CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
+    Frame(g, &none, 1.0f / 60.0f, true);        /* first frame (uploads) is not timed */
+    t0 = GetTime();
+    for (f = 0; f < 30; f++) Frame(g, &none, 1.0f / 60.0f, true);
+    took = GetTime() - t0;
+    *frames += 30;
+    Screen_Save(file);
+    return took;
+}
+
+static void Place(Game *g, float x, float z, float yaw, float pitch)
+{
+    g->player.pos = (Vector3){ x, 0.0f, z };
+    g->player.vel = (Vector3){ 0 };
+    g->player.yaw = g->rig.yaw = yaw;
+    g->rig.pitch = pitch;
+    g->rig.dist = CAM_DISTANCE;
+}
+
+/* The longest straight run of corridor cells: start cell + direction (yaw). */
+static bool LongestCorridor(const World *w, float *x, float *z, float *yaw)
+{
+    int best = 0, cx, cz, axis;
+    for (axis = 0; axis < 2; axis++) {
+        for (cz = 0; cz < w->h; cz++) {
+            for (cx = 0; cx < w->w; cx++) {
+                int len = 0;
+                while (len < 60) {
+                    int px = cx + (axis == 0 ? len : 0), pz = cz + (axis == 1 ? len : 0);
+                    if (px >= w->w || pz >= w->h || w->area[pz][px] != AREA_CORRIDOR || World_IsSolid(w, px, pz)) break;
+                    len++;
+                }
+                if (len > best) {
+                    best = len;
+                    *x = cx + 0.5f;
+                    *z = cz + 0.5f;
+                    *yaw = axis == 0 ? PI * 0.5f : 0.0f;     /* look toward +X or +Z along the run */
+                }
+            }
+        }
+    }
+    return best >= 3;
+}
+
+/* --tour: 4 screenshots per wing (start, largest room, corridor, start with HUD) + average FPS. */
+int Game_Tour(Game *g)
+{
+    double seconds = 0.0;
+    int frames = 0, wing, i;
+    MakeDirectory("shots");
+    for (wing = 0; wing <= WING_COUNT; wing++) {
+        const World *w = &g->world;
+        const Room *big = NULL;
+        float x, z, yaw;
+        bool ok = wing < WING_COUNT ? (Game_NewGame(g, wing), g->state == STATE_PLAYING && g->wing == wing)
+                                    : Game_LoadSanctum(g);
+        if (!ok) { printf("tour: wing %d failed to load\n", wing + 1); return 1; }
+        g->player.god = true;
+        g->fade = 0.0f;
+
+        /* 1: third-person view at the start, no HUD */
+        g->hideHud = true;
+        Place(g, w->start.x, w->start.z, w->startYaw, CAM_PITCH_DEFAULT * DEG2RAD);
+        seconds += TourShot(g, TextFormat("shots/tour_w%d_1.png", wing + 1), &frames);
+
+        /* 2: the largest room, looking at its longest wall from the middle */
+        for (i = 0; i < w->roomCount; i++) if (!big || w->rooms[i].cells > big->cells) big = &w->rooms[i];
+        if (big) {
+            float cx = (big->x0 + big->x1 + 1) * 0.5f, cz = (big->z0 + big->z1 + 1) * 0.5f;
+            bool alongX = (big->x1 - big->x0) >= (big->z1 - big->z0);   /* longest walls run along X */
+            yaw = alongX ? PI : -PI * 0.5f;                             /* face the north or west wall */
+            Place(g, cx - sinf(yaw) * 1.5f, cz - cosf(yaw) * 1.5f, yaw, 0.08f);
+            if (World_IsSolid(w, (int)g->player.pos.x, (int)g->player.pos.z)) Place(g, cx, cz, yaw, 0.08f);
+        }
+        seconds += TourShot(g, TextFormat("shots/tour_w%d_2.png", wing + 1), &frames);
+
+        /* 3: a corridor, looking along it */
+        if (LongestCorridor(w, &x, &z, &yaw)) Place(g, x, z, yaw, -0.05f);
+        seconds += TourShot(g, TextFormat("shots/tour_w%d_3.png", wing + 1), &frames);
+
+        /* 4: view 1 again with the HUD (and minimap) */
+        g->hideHud = false;
+        Place(g, w->start.x, w->start.z, w->startYaw, CAM_PITCH_DEFAULT * DEG2RAD);
+        seconds += TourShot(g, TextFormat("shots/tour_w%d_4.png", wing + 1), &frames);
+        printf("tour: %-22s rooms %2d  largest %3d cells\n", w->name, w->roomCount, big ? big->cells : 0);
+    }
+    printf("tour: %d frames, average %.1f FPS\n", frames, seconds > 0.0 ? frames / seconds : 0.0);
+    return 0;
 }
 
 int Game_Autotest(Game *g)

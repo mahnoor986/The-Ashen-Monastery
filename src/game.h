@@ -107,6 +107,7 @@ typedef struct Game {
     bool      mouseLook;               /* mouse captured for camera control */
     int       mouseSkip;               /* frames to ignore mouse movement after capturing */
     bool      autotest;
+    bool      hideHud;                 /* --tour: clean screenshots */
     bool      debug;                   /* F1 overlay */
     bool      showFps;
     bool      quit;
@@ -126,6 +127,7 @@ bool Game_LoadSanctum(Game *g);             /* the ending scene after wing 5 */
 void Game_Update(Game *g, const Input *in, float dt);
 void Game_Draw(Game *g);                    /* draws into the virtual screen */
 int  Game_Autotest(Game *g);                /* returns the process exit code */
+int  Game_Tour(Game *g);                    /* --tour screenshots; returns the exit code */
 void Game_Shutdown(Game *g);
 
 const char *Game_WingTitle(int wing);       /* "THE SECOND BELL" */

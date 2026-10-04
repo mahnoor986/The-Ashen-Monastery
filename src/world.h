@@ -14,6 +14,14 @@ typedef struct {
     float   yaw;         /* starting facing */
 } Spawn;
 
+/* What kind of space a cell is (architecture: rooms are tall, corridors low). */
+enum { AREA_SOLID = 0, AREA_CORRIDOR = 1, AREA_ROOM = 2 };
+
+typedef struct {
+    int x0, z0, x1, z1;  /* bounding box in cells (inclusive) */
+    int cells;           /* number of room cells */
+} Room;
+
 typedef struct {
     Vector3 pos;         /* flame position */
     Vector3 normal;      /* direction the torch sticks out of the wall */
@@ -37,6 +45,9 @@ typedef struct {
     Spawn spawns[MAX_SPAWNS];    int spawnCount;
     Spawn npcs[MAX_NPCS];        int npcCount;   /* 'O' Master Oren, 'a' apprentices/monks */
     Torch torches[MAX_TORCHES];  int torchCount;
+    unsigned char area[WORLD_MAX_H][WORLD_MAX_W];   /* AREA_* of every cell */
+    unsigned char roomId[WORLD_MAX_H][WORLD_MAX_W]; /* 1-based room index, 0 = not a room */
+    Room  rooms[MAX_ROOMS];      int roomCount;
 
     Mesh  chunks[MAX_CHUNKS];    int chunkCount;
     int   vertexCount;                       /* total over all chunks (for the autotest summary) */

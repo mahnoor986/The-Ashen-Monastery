@@ -1,5 +1,7 @@
 /* main.c - program entry point: window, main loop and command-line flags.
- *   --wing N     start directly in wing N (1-5), skipping the menu
+ *   --wing N     start directly in wing N (1-5, 6 = the Sanctum), skipping the menu
+ *   --sanctum    start directly in the Sanctum (the ending hall)
+ *   --tour       4 screenshots per wing in shots/tour_wN_K.png + average FPS, then exit
  *   --autotest   render every wing + screens, play wing 1 with scripted input, save
  *                screenshots to shots/, print a summary, exit 0 (or 1 on any error) */
 #include <stdio.h>
@@ -14,16 +16,18 @@
 int main(int argc, char **argv)
 {
     static Game game;          /* static: keeps the big struct off the stack */
-    bool autotest = false, directStart = false;
+    bool autotest = false, directStart = false, tour = false;
     int startWing = 0, i, code = 0;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--autotest") == 0) autotest = true;
+        else if (strcmp(argv[i], "--tour") == 0) tour = true;
+        else if (strcmp(argv[i], "--sanctum") == 0) { startWing = WING_COUNT; directStart = true; }
         else if (strcmp(argv[i], "--wing") == 0 && i + 1 < argc) { startWing = atoi(argv[++i]) - 1; directStart = true; }
     }
-    if (startWing < 0 || startWing >= WING_COUNT) startWing = 0;
+    if (startWing < 0 || startWing > WING_COUNT) startWing = 0;
 
-    if (autotest) {
+    if (autotest || tour) {
         SetTraceLogLevel(LOG_WARNING);              /* keep the summary readable */
         setvbuf(stdout, NULL, _IONBF, 0);           /* show progress immediately */
     }
@@ -32,9 +36,11 @@ int main(int argc, char **argv)
     SetExitKey(KEY_NULL);                           /* Esc pauses instead of quitting */
     SetTargetFPS(TARGET_FPS);
 
-    Game_Init(&game, startWing, directStart, autotest);
+    Game_Init(&game, startWing, directStart, autotest || tour);
 
-    if (autotest) {
+    if (tour) {
+        code = Game_Tour(&game);
+    } else if (autotest) {
         code = Game_Autotest(&game);
     } else {
         while (!WindowShouldClose() && !game.quit) {

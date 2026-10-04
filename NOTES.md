@@ -242,3 +242,12 @@ Decisions made while building, and things worth knowing.
   amber (1.0, 0.68, 0.35). Red is kept for danger/magic: bell tolls no longer pulse the screen red
   (only the lights flare); a bell shattering still flashes red.
 - Falling ash only in wing 5 (the Bell Tower); embers everywhere.
+
+## Item 4 - `--tour`
+- `--tour` saves `shots/tour_wN_1..4.png` for wings 1-5 and the Sanctum (N = 6): start view
+  without HUD, the largest room facing its longest wall, the longest straight corridor, and the
+  start view with the HUD. The first frame of each shot is not timed; average FPS is printed.
+- `world.c` now classifies cells: a floor cell inside any fully open 4x4 square is a room cell,
+  every other open cell is a corridor cell; connected room cells form `Room`s (bounding box +
+  cell count). The architecture will use this for wall heights.
+- New flags: `--sanctum` (or `--wing 6`) starts in the Sanctum.

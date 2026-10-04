@@ -46,6 +46,8 @@
 #define MAX_CHESTS      8
 #define MAX_EXIT_CELLS  4
 #define MAX_SPAWNS      64
+#define MAX_ROOMS       32
+#define ROOM_MIN_OPEN   4               /* a floor cell inside an open 4x4 area belongs to a room */
 #define TORCH_HEIGHT    2.3f            /* flame height above the floor */
 #define TORCH_RADIUS    7.0f            /* how far baked torch light reaches */
 #define TORCH_INTENSITY 1.7f            /* brightness of one torch right next to it */
