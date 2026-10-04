@@ -59,10 +59,10 @@ void Atmos_Update(Atmos *a, Vector3 center, const World *w, float dt)
     }
 }
 
-void Atmos_Draw(const Atmos *a)
+void Atmos_Draw(const Atmos *a, bool ash)
 {
     int i;
-    for (i = 0; i < ASH_COUNT; i++)
+    for (i = 0; i < ASH_COUNT && ash; i++)
         DrawCube(a->ash[i].pos, 0.035f, 0.035f, 0.035f, (Color){ 92, 86, 82, 255 });
 
     /* embers glow: additive blending */

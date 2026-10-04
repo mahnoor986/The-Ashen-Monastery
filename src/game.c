@@ -696,12 +696,11 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     UpdateExit(g, dt);
     UpdateParticles(g, dt);
 
-    /* a distant bell tolls: the screen pulses red and the torches flare */
+    /* a distant bell tolls: the lights flare up (red is kept for danger and magic) */
     g->tollTimer -= dt;
     if (g->tollTimer <= 0.0f) {
         g->tollTimer = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
         Audio_Play(SND_BELL, 1.0f);
-        g->redPulse = fmaxf(g->redPulse, 0.6f);
         g->torchFlare = 1.0f;
     }
 }
@@ -948,7 +947,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     }
     Bolts_Draw(g->bolts);
     DrawBeam(g);
-    if (!g->sanctum) Atmos_Draw(&g->atmos);
+    if (!g->sanctum) Atmos_Draw(&g->atmos, g->wing == WING_COUNT - 1);
     for (i = 0; i < g->npcCount; i++) {
         const Npc *n = &g->npcs[i];
         CharPose np = { 0 };

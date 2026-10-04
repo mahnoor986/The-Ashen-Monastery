@@ -25,6 +25,6 @@ typedef struct {
 
 void Atmos_Reset(Atmos *a, Vector3 center);                                 /* scatter the ash around a point */
 void Atmos_Update(Atmos *a, Vector3 center, const World *w, float dt);
-void Atmos_Draw(const Atmos *a);                                            /* inside BeginMode3D */
+void Atmos_Draw(const Atmos *a, bool ash);      /* inside BeginMode3D; ash = draw the falling ash (wing 5) */
 
 #endif

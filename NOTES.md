@@ -227,3 +227,18 @@ Decisions made while building, and things worth knowing.
   bell tolls are all in.
 - Kael still uses the knight's body (helmet + tabard) with the wand; the spec only asked to swap
   the sword for the wand.
+
+# Master spec progress
+
+## Item 1 - Story texts
+- Intro lines 2 and 4 now mention the relics and the caged serpent; chest prompt "[E] Hold to open
+  chest"; pause "Quit to title"; autotest labels use the Ashen names.
+
+## Item 3 - Moonlit gothic grade
+- `post.fs` grade mode 0 is now a split-tone: cool blue-indigo shadows, warm amber highlights,
+  saturation x0.82, a gentle S-curve; vignette fades toward deep indigo instead of black.
+  Grain 0.04. Mode 1 (Sanctum) stays warm gold.
+- Fog/background are deep indigo (0.025, 0.03, 0.06), ambient is cold moonlight blue, torches are
+  amber (1.0, 0.68, 0.35). Red is kept for danger/magic: bell tolls no longer pulse the screen red
+  (only the lights flare); a bell shattering still flashes red.
+- Falling ash only in wing 5 (the Bell Tower); embers everywhere.
