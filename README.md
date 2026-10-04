@@ -20,7 +20,7 @@ candlelight in fog. Built as a college project.
 
 No installation, no code, no commands.
 
-1. Go to the **[latest release](https://github.com/YOUR-USERNAME/the-ashen-monastery/releases/latest)**
+1. Go to the **[latest release](https://github.com/mahnoor986/The-Ashen-Monastery/releases/latest)**
    and download **`AshenMonastery_Windows.zip`**.
 2. Right-click the zip → **Extract All** (don't run it from inside the zip).
 3. Open the extracted folder and double-click **`AshenMonastery.exe`**.
@@ -114,7 +114,7 @@ Requirements: Windows 10 or 11, any graphics card from the last ~10 years (OpenG
 You need **w64devkit** (gcc + make) and **raylib 6.0** for MinGW-w64.
 
 ```
-git clone https://github.com/mahnoor986/the-ashen-monastery.git
+git clone https://github.com/mahnoor986/The-Ashen-Monastery.git
 cd the-ashen-monastery
 make                 # debug build -> AshenMonastery.exe
 make run             # build and run
