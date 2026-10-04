@@ -15,11 +15,11 @@ void UI_Shutdown(void);
 void UI_Text(bool title, const char *text, float x, float y, float size, Color c);
 void UI_TextCentered(bool title, const char *text, float cx, float y, float size, Color c);
 
-/* clickable menu rows (shared by drawing and the game's mouse handling) */
-Rectangle UI_MenuItemRect(int index, int count);
+/* clickable pause rows (shared by drawing and the game's mouse handling) */
 Rectangle UI_PauseItemRect(int index, int count);
 
-void UI_DrawMenu(const struct Game *g);
+/* Title letters fading in one by one with a soft glow (`letters` = how many are visible). */
+void UI_TextReveal(const char *text, float cx, float y, float size, float letters, Color c);
 void UI_DrawHUD(const struct Game *g);
 void UI_DrawPause(const struct Game *g);
 void UI_DrawInventory(const struct Game *g);

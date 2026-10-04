@@ -21,6 +21,8 @@ typedef enum {
     SND_BELL,        /* distant bell toll (generated in code) */
     SND_BELL_BREAK,  /* a cursed bell shatters (generated in code) */
     SND_THUNDER,     /* thunder after lightning (generated in code) */
+    SND_WHOOSH,      /* deep whoosh when a menu choice is made (generated in code) */
+    SND_WIND,        /* howling wind on the title screen, re-started while it should play (generated) */
     SND_COUNT
 } SoundId;
 
@@ -29,5 +31,7 @@ void Audio_Shutdown(void);
 void Audio_Update(void);                    /* keeps the ambience stream fed; call every frame */
 void Audio_Play(SoundId id, float volume);  /* random variant + small random pitch change */
 void Audio_SetCalm(bool calm);              /* Sanctum: ambience slower and quieter */
+void Audio_Loop(SoundId id, float volume);  /* keep a sound playing (start it again when it ends) */
+void Audio_Stop(SoundId id);
 
 #endif

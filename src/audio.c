@@ -43,6 +43,8 @@ static const SoundRole ROLES[SND_COUNT] = {
     [SND_BELL]     = { { NULL }, 0.55f, 0.03f },     /* generated: see MakeBell() */
     [SND_BELL_BREAK] = { { NULL }, 1.0f, 0.0f },
     [SND_THUNDER]  = { { NULL }, 0.9f, 0.08f },     /* generated: see MakeThunder() */
+    [SND_WHOOSH]   = { { NULL }, 0.9f, 0.0f },      /* generated: see MakeNoise() */
+    [SND_WIND]     = { { NULL }, 0.5f, 0.0f },      /* generated: see MakeNoise() */
 };
 
 /* SND_BOLT plays pitched up so the knife whoosh sounds like a magic hiss */
@@ -151,6 +153,57 @@ static Sound MakeThunder(void)
     return s;
 }
 
+/* Filtered noise: `whoosh` = a short deep sweep, otherwise a long howling wind (gusts). */
+static Sound MakeNoise(bool whoosh)
+{
+    const int rate = 22050, n = (int)(22050 * (whoosh ? 1.2f : 8.0f));
+    short *data = MemAlloc((unsigned int)(n * sizeof(short)));
+    unsigned int seed = whoosh ? 99u : 31337u;
+    float lp = 0.0f, bp = 0.0f;
+    Wave wave;
+    Sound s;
+    int i;
+    for (i = 0; i < n; i++) {
+        float t = (float)i / rate, noise, env, cut, v;
+        seed = seed * 1664525u + 1013904223u;
+        noise = ((seed >> 9) & 0xffff) / 32768.0f - 1.0f;
+        if (whoosh) {
+            cut = 0.02f + 0.18f * expf(-t * 3.0f);
+            env = sinf(fminf(1.0f, t / 1.2f) * PI) * 1.4f;
+        } else {
+            cut = 0.015f + 0.02f * (0.5f + 0.5f * sinf(t * 0.9f + sinf(t * 0.37f) * 2.0f));
+            env = 0.5f + 0.5f * sinf(t * 2.0f * PI / 8.0f - PI * 0.5f) * 0.6f + 0.2f * sinf(t * 1.7f);
+            env *= fminf(1.0f, fminf(t, 8.0f - t) * 2.0f);    /* fade at both ends so it loops softly */
+        }
+        lp += (noise - lp) * cut;
+        bp += (lp - bp) * cut;
+        v = (lp - bp) * 6.0f * env + bp * 2.0f * env;
+        if (v > 1.0f) v = 1.0f;
+        if (v < -1.0f) v = -1.0f;
+        data[i] = (short)(v * 26000.0f);
+    }
+    wave.frameCount = (unsigned int)n;
+    wave.sampleRate = (unsigned int)rate;
+    wave.sampleSize = 16;
+    wave.channels = 1;
+    wave.data = data;
+    s = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    return s;
+}
+
+void Audio_Loop(SoundId id, float volume)
+{
+    if (!ready || counts[id] == 0 || IsSoundPlaying(sounds[id][0])) return;
+    SetSoundVolume(sounds[id][0], ROLES[id].volume * volume);
+    PlaySound(sounds[id][0]);
+}
+
+void Audio_Stop(SoundId id)
+{
+    if (ready && counts[id] > 0) StopSound(sounds[id][0]);
+}
+
 void Audio_Init(bool enabled)
 {
     int r, v;
@@ -179,6 +232,10 @@ void Audio_Init(bool enabled)
     if (IsSoundValid(sounds[SND_BELL_BREAK][0])) counts[SND_BELL_BREAK] = 1;
     sounds[SND_THUNDER][0] = MakeThunder();
     if (IsSoundValid(sounds[SND_THUNDER][0])) counts[SND_THUNDER] = 1;
+    sounds[SND_WHOOSH][0] = MakeNoise(true);
+    if (IsSoundValid(sounds[SND_WHOOSH][0])) counts[SND_WHOOSH] = 1;
+    sounds[SND_WIND][0] = MakeNoise(false);
+    if (IsSoundValid(sounds[SND_WIND][0])) counts[SND_WIND] = 1;
 
     if (FileExists(AMBIENCE_FILE)) {
         ambience = LoadMusicStream(AMBIENCE_FILE);

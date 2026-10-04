@@ -53,6 +53,9 @@ typedef enum {
     MAT_CLOTH,             /* crimson curtain/rug cloth (generated) */
     MAT_POTION,            /* sickly green glow: cauldrons (generated, emissive) */
     MAT_MIRROR,            /* dark mirror glass with a faint sheen (generated) */
+    MAT_WINDOW_LIT,        /* title castle: warm lit window, emissive (generated) */
+    MAT_WINDOW_FLICKER,    /* the same, for windows that flicker */
+    MAT_SNOW,              /* title cliff: snow (generated) */
     MAT_COUNT
 } MaterialId;
 

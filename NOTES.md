@@ -382,3 +382,25 @@ Decisions made while building, and things worth knowing.
   `assets/models/README.txt` lists the file names (relic slots are used by item 13).
 - HUD: the minimap hides during Master Oren's dialogue; the controls hint and friends' text box
   moved left so they never cover the minimap.
+
+## Item 12 - Title screen and menus
+- `title.c` (new) builds the title scene once with the same geometry builder as the wings:
+  a jagged cliff (lathe rings with noise; snow on the gentler upper slopes, dark slate crags,
+  two-sided faces), and an original castle-monastery on top: eight round towers (8-12 sides, pale
+  stone, corbelled rings, dark conical spires with iron needle tips) of different heights, curtain
+  walls with merlons, a long hall with a steep gable roof, buttresses and tall pointed windows,
+  and a stained-glass end window. Many lit windows: warm steady, warm flickering, a few cold blue.
+- Sky: gradient, a generated pale moon, 14 drifting cloud billboards (Perlin noise texture);
+  falling snow in a box in front of the camera; mist banks at the cliff's foot; 7 crows (two
+  flapping wing triangles each) circling the spires; lightning every 6-12 s (two flashes, a bolt,
+  a big white-blue light, thunder 1 s later); a warm orange and a cold teal light sweep around the
+  castle in opposite directions; a soft moonlight from above. The camera drifts in a 70 s loop
+  (low and looking up -> higher, orbiting a few degrees, slight sway). Same 640x360 PS1 pipeline.
+- Flow (`Game.menuPhase`): black -> the scene fades in with a distant bell -> "THE ASHEN
+  MONASTERY" letter by letter with a soft glow (`UI_TextReveal`) -> subtitle -> "Press any key"
+  pulses. A key slides the menu in from the left over a dark gradient: New Game, Continue (if
+  saved), Controls, Credits, Quit. Hover: bigger, candle gold, flickering flame icon, soft tick.
+  Choosing: synthesised whoosh + lightning flash + fade to black, then the intro / the saved wing.
+  Controls: two columns of key caps. Credits: slow scroll ("Created by: ___" + all assets).
+- Sounds: synthesised wind loop (title only) and whoosh (`MakeNoise`); `Audio_Loop/Audio_Stop`.
+- Autotest: `shots/title.png`, `menu.png`, `controls.png`, `credits.png`; checks a key opens the menu.

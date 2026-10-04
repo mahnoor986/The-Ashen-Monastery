@@ -106,6 +106,11 @@ typedef struct Game {
     float     time;                    /* seconds since start */
     float     wingTime;                /* seconds since entering the current wing */
     int       menuSel, pauseSel;
+    int       menuPhase;               /* title: 0 reveal, 1 menu, 2 controls, 3 credits, 4 leaving */
+    int       menuAction;              /* MENU_* chosen (acted on after the fade) */
+    float     menuTime;                /* seconds in the current title phase */
+    float     titleTime;               /* seconds since the title screen appeared */
+    bool      titleBell;
     float     introTime;               /* seconds into the intro text */
 
     /* the Sanctum ending */
@@ -143,7 +148,8 @@ int  Game_Tour(Game *g);                    /* --tour screenshots; returns the e
 void Game_Shutdown(Game *g);
 
 const char *Game_WingTitle(int wing);       /* "THE SECOND BELL" */
-/* Main menu entries: fills labels + actions (0 new game, 1 continue, 2 quit), returns the count. */
-int Game_MenuOptions(const Game *g, int actions[4], const char *labels[4]);
+/* Title menu entries: fills labels + actions (MENU_*), returns the count. */
+enum { MENU_NEW = 0, MENU_CONTINUE, MENU_QUIT, MENU_CONTROLS, MENU_CREDITS };
+int Game_MenuOptions(const Game *g, int actions[6], const char *labels[6]);
 
 #endif

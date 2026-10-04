@@ -546,6 +546,8 @@ static Image LoadPhotoMaterial(int i)
 
 static Image GenPotion(void);
 static Image GenMirror(void);
+static Image GenWindowLit(void);
+static Image GenSnow(void);
 
 static void InitMaterials(void)
 {
@@ -564,6 +566,9 @@ static void InitMaterials(void)
     gen[MAT_CLOTH] = GenCloth();
     gen[MAT_POTION] = GenPotion();
     gen[MAT_MIRROR] = GenMirror();
+    gen[MAT_WINDOW_LIT] = GenWindowLit();
+    gen[MAT_WINDOW_FLICKER] = GenWindowLit();
+    gen[MAT_SNOW] = GenSnow();
     for (i = 0; i < MAT_COUNT; i++) {
         if (gen[i].width != MAT_TEX_SIZE) ImageResizeNN(&gen[i], MAT_TEX_SIZE, MAT_TEX_SIZE);   /* chunky pixels */
         materials[i] = LoadTextureFromImage(gen[i]);
@@ -596,6 +601,31 @@ static Image GenMirror(void)
             c = Shade(c, 1.0f + 1.4f * sheen);
             Px(&img, x, y, c);
         }
+    return img;
+}
+
+/* A warm lit window seen from outside: amber glow, dark mullion cross, brighter at the bottom. */
+static Image GenWindowLit(void)
+{
+    Image img = GenImageColor(64, 64, BLACK);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            float t = y / 63.0f;
+            Color c = Noisy((Color){ (unsigned char)(200 + 50 * t), (unsigned char)(120 + 50 * t), (unsigned char)(40 + 30 * t), 255 }, x / 4, y / 4, 75, 0.15f);
+            if (x < 5 || x > 58 || y < 5 || y > 58 || (x > 29 && x < 34) || (y > 27 && y < 32)) c = (Color){ 20, 14, 10, 255 };
+            Px(&img, x, y, c);
+        }
+    return img;
+}
+
+static Image GenSnow(void)
+{
+    Image img = GenImageColor(64, 64, WHITE);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++)
+            Px(&img, x, y, Noisy((Color){ 190, 200, 214, 255 }, x / 2, y / 2, 76, 0.12f));
     return img;
 }
 

@@ -204,6 +204,9 @@
 #define BELL_TOLL_MIN       25.0f       /* a distant bell tolls every 25-40 s (less often as bells break) */
 #define BELL_TOLL_MAX       40.0f
 #define LIGHTNING_ENABLED   1           /* 0 = no lightning storms */
+#define TITLE_LIGHTNING_MIN 6.0f        /* title screen: lightning every 6-12 s */
+#define TITLE_LIGHTNING_MAX 12.0f
+#define TITLE_REVEAL_TIME   4.6f        /* seconds until the whole title + subtitle are shown */
 #define LIGHTNING_MIN       20.0f       /* seconds between lightning strikes */
 #define LIGHTNING_MAX       45.0f
 #define LIGHTNING_STORMY    0.45f       /* wing 5: intervals x this (frequent lightning) */

@@ -16,6 +16,7 @@ typedef struct {
     bool pause;          /* Esc or P pressed */
     bool inventory;      /* I or Tab pressed */
     bool map;            /* M pressed: full-screen map */
+    bool anyKey;         /* any key or mouse button pressed (title screen) */
     bool confirm;        /* Enter pressed */
     bool up, down;       /* menu navigation pressed (W/S or arrows) */
     bool click;          /* left click pressed (menus) */

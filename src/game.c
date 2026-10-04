@@ -13,6 +13,7 @@
 #include "audio.h"
 #include "ui.h"
 #include "minimap.h"
+#include "title.h"
 #include "rlgl.h"
 #include "raymath.h"
 
@@ -140,25 +141,31 @@ static void WriteSave(Game *g, int wing1)
 
 /* ============================================================ menus */
 
-int Game_MenuOptions(const Game *g, int actions[4], const char *labels[4])
+int Game_MenuOptions(const Game *g, int actions[6], const char *labels[6])
 {
     static char cont[48];
     int n = 0;
-    actions[n] = 0; labels[n++] = "New Game";
+    actions[n] = MENU_NEW; labels[n++] = "New Game";
     if (g->savedWing > 0) {
         snprintf(cont, sizeof(cont), "Continue (Wing %d)", g->savedWing);
-        actions[n] = 1; labels[n++] = cont;
+        actions[n] = MENU_CONTINUE; labels[n++] = cont;
     }
-    actions[n] = 2; labels[n++] = "Quit";
+    actions[n] = MENU_CONTROLS; labels[n++] = "Controls";
+    actions[n] = MENU_CREDITS; labels[n++] = "Credits";
+    actions[n] = MENU_QUIT; labels[n++] = "Quit";
     return n;
 }
 
+/* Back to the title screen: black, the castle fades in, the title appears letter by letter. */
 static void EnterMenu(Game *g)
 {
-    if (Game_LoadWing(g, 0)) g->bannerCount = 0;   /* wing 1 is the menu background */
     g->state = STATE_MENU;
     g->menuSel = 0;
-    g->fade = 1.0f;
+    g->menuPhase = 0;
+    g->menuTime = 0.0f;
+    g->titleTime = 0.0f;
+    g->titleBell = false;
+    g->fade = 0.0f;
     SetMouseCaptured(g, false);
 }
 
@@ -761,39 +768,69 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
 static int MenuPick(int *sel, int count, const Input *in, Rectangle (*rectOf)(int, int))
 {
     int i;
-    if (in->up) { *sel = (*sel + count - 1) % count; Audio_Play(SND_CLICK, 0.5f); }
-    if (in->down) { *sel = (*sel + 1) % count; Audio_Play(SND_CLICK, 0.5f); }
+    if (in->up) { *sel = (*sel + count - 1) % count; Audio_Play(SND_CLICK, 0.4f); }
+    if (in->down) { *sel = (*sel + 1) % count; Audio_Play(SND_CLICK, 0.4f); }
     for (i = 0; i < count; i++) {
         if (CheckCollisionPointRec(in->mouse, rectOf(i, count))) {
             if (in->click) { *sel = i; return i; }
-            if (in->look.x != 0.0f || in->look.y != 0.0f) *sel = i;   /* hover follows the mouse */
+            if ((in->look.x != 0.0f || in->look.y != 0.0f) && *sel != i) {   /* hover follows the mouse */
+                *sel = i;
+                Audio_Play(SND_CLICK, 0.3f);                                 /* soft tick */
+            }
         }
     }
     return in->confirm ? *sel : -1;
 }
 
+/* The title screen: 0 the title appears, 1 the menu, 2 controls, 3 credits, 4 a choice was made
+ * (whoosh, lightning, fade to black, then act on it). */
 static void UpdateMenu(Game *g, const Input *in, float dt)
 {
-    int actions[4], count, pick;
-    const char *labels[4];
-    float a = g->time * 0.12f;
-    Vector3 c = { g->world.start.x, 0.0f, g->world.start.z - 2.0f };
+    int actions[6], count, pick;
+    const char *labels[6];
+    const float reveal = TITLE_REVEAL_TIME;
 
-    count = Game_MenuOptions(g, actions, labels);
-    if (g->menuSel >= count) g->menuSel = 0;
-    pick = MenuPick(&g->menuSel, count, in, UI_MenuItemRect);
-    if (g->fade > 0.0f) g->fade = fmaxf(0.0f, g->fade - dt);
+    g->titleTime += dt;
+    g->menuTime += dt;
+    Title_Update(dt, !g->autotest);
+    if (!g->titleBell && g->titleTime > 0.6f) { g->titleBell = true; Audio_Play(SND_BELL, 0.7f); }   /* a distant bell */
 
-    /* slowly orbit inside the entrance hall */
-    g->rig.cam.position = (Vector3){ c.x + sinf(a) * 4.0f, 2.3f, c.z + cosf(a) * 4.0f };
-    g->rig.cam.target = (Vector3){ c.x - sinf(a) * 2.0f, 1.4f, c.z - cosf(a) * 2.0f };
-
-    if (pick < 0) return;
-    Audio_Play(SND_CLICK, 1.0f);
-    switch (actions[pick]) {
-    case 0: g->state = STATE_INTRO; g->introTime = 0.0f; break;      /* story first, then wing 1 */
-    case 1: Game_NewGame(g, g->savedWing - 1); break;
-    default: g->quit = true; break;
+    switch (g->menuPhase) {
+    case 0:
+        if (in->anyKey || in->confirm) {
+            if (g->titleTime < reveal) g->titleTime = reveal;                 /* show it all at once */
+            else { g->menuPhase = 1; g->menuTime = 0.0f; Audio_Play(SND_CLICK, 0.6f); }
+        }
+        break;
+    case 1:
+        count = Game_MenuOptions(g, actions, labels);
+        if (g->menuSel >= count) g->menuSel = 0;
+        pick = MenuPick(&g->menuSel, count, in, Title_MenuItemRect);
+        if (pick < 0) break;
+        g->menuAction = actions[pick];
+        if (g->menuAction == MENU_CONTROLS || g->menuAction == MENU_CREDITS) {
+            Audio_Play(SND_CLICK, 0.8f);
+            g->menuPhase = g->menuAction == MENU_CONTROLS ? 2 : 3;
+            g->menuTime = 0.0f;
+        } else {
+            Audio_Play(SND_WHOOSH, 1.0f);
+            Title_Flash();
+            g->menuPhase = 4;
+            g->menuTime = 0.0f;
+        }
+        break;
+    case 2:
+    case 3:
+        if (in->pause || in->confirm || in->click) { g->menuPhase = 1; g->menuTime = 0.4f; Audio_Play(SND_CLICK, 0.5f); }
+        break;
+    default:
+        g->fade = fminf(1.0f, g->menuTime / 0.9f);
+        if (g->menuTime < 1.0f) break;
+        Audio_Stop(SND_WIND);
+        if (g->menuAction == MENU_NEW) { g->state = STATE_INTRO; g->introTime = 0.0f; g->fade = 0.0f; }   /* story first */
+        else if (g->menuAction == MENU_CONTINUE) Game_NewGame(g, g->savedWing - 1);
+        else g->quit = true;
+        break;
     }
 }
 
@@ -866,6 +903,7 @@ void Game_Init(Game *g, int startWing, bool directStart, bool autotest)
     Render_Init();
     Post_Init();
     Character_Init();
+    Title_Init();
     if (Render_HasShader()) Character_SetShader(Render_Shader());
     UI_Init();
     Audio_Init(!autotest);
@@ -885,6 +923,7 @@ void Game_Shutdown(Game *g)
     Minimap_Unload();
     Audio_Shutdown();
     UI_Shutdown();
+    Title_Shutdown();
     Character_Shutdown();
     Post_Shutdown();
     Render_Shutdown();
@@ -1092,14 +1131,15 @@ void Game_Draw(Game *g)
     /* 3D at low resolution, then up-scaled through the post-process, then crisp UI on top */
     Post_BeginScene();
     ClearBackground(FogColor(g));
-    if (g->worldLoaded && g->state != STATE_INTRO) DrawScene(g, cam, g->state != STATE_MENU);
+    if (g->state == STATE_MENU) Title_DrawScene(g->titleTime);
+    else if (g->worldLoaded && g->state != STATE_INTRO) DrawScene(g, cam, true);
     Post_EndScene();
 
     Screen_Begin();
     ClearBackground(BLACK);
     Post_Draw(g->time, g->sanctum ? 1 : 0, g->redPulse);
     switch (g->state) {
-    case STATE_MENU:      UI_DrawMenu(g); break;
+    case STATE_MENU:      Title_DrawUI(g); break;
     case STATE_PLAYING:   if (!g->hideHud) UI_DrawHUD(g); break;
     case STATE_PAUSED:    UI_DrawHUD(g); UI_DrawPause(g); break;
     case STATE_INVENTORY: UI_DrawInventory(g); break;
@@ -1588,10 +1628,27 @@ int Game_Autotest(Game *g)
 
     MakeDirectory("shots");
 
-    /* menu over the 3D manor */
+    /* the title screen: fully revealed, then the menu, controls and credits */
     EnterMenu(g);
-    for (f = 0; f < 60; f++) Frame(g, &none, dt, f == 59);
-    if (!Screen_Save("shots/menu.png")) { printf("autotest: could not write shots/menu.png\n"); failures++; }
+    for (f = 0; f < (int)(TITLE_REVEAL_TIME * 60.0f) + 30; f++) Frame(g, &none, dt, false);
+    Frame(g, &none, dt, true);
+    if (!Screen_Save("shots/title.png")) { printf("autotest: could not write shots/title.png\n"); failures++; }
+    {
+        Input key = none;
+        key.anyKey = true;
+        Frame(g, &key, dt, false);
+        for (f = 0; f < 40; f++) Frame(g, &none, dt, f == 39);
+        Screen_Save("shots/menu.png");
+        failures += Check(g->menuPhase == 1, "a key opens the title menu");
+        g->menuPhase = 2;
+        Frame(g, &none, dt, true);
+        Screen_Save("shots/controls.png");
+        g->menuPhase = 3;
+        g->menuTime = 9.0f;
+        Frame(g, &none, dt, true);
+        Screen_Save("shots/credits.png");
+        g->menuPhase = 1;
+    }
     g->state = STATE_INTRO;
     g->introTime = INTRO_LINE_TIME * 3.0f + 1.5f;       /* the last line, fully faded in */
     Game_Draw(g);

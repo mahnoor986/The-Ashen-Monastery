@@ -462,7 +462,7 @@ void Render_DrawWorld(const World *w, float time)
     Render_UseWorldLight();
     for (i = 0; i < w->partCount; i++) {
         int m = w->parts[i].mat;
-        bool glow = m == MAT_GLASS || m == MAT_FLAME || m == MAT_POTION;
+        bool glow = m == MAT_GLASS || m == MAT_FLAME || m == MAT_POTION || m == MAT_WINDOW_LIT || m == MAT_WINDOW_FLICKER;
         if (m == MAT_COBWEB) continue;                       /* drawn in the transparent pass */
         if (glow) Render_SetEmissive(true);
         if (m == MAT_FLOOR && hasShader) SetF(locSpecular, FLOOR_SPECULAR);

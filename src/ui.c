@@ -86,6 +86,30 @@ void UI_TextCentered(bool title, const char *text, float cx, float y, float size
     UI_Text(title, text, cx - Measure(title, text, size).x * 0.5f, y, size, c);
 }
 
+/* Title text appearing letter by letter: `letters` = how many are shown (fractional = fading
+ * in), each with a soft glow around it. */
+void UI_TextReveal(const char *text, float cx, float y, float size, float letters, Color c)
+{
+    float spacing = size * 0.03f, x = cx - Measure(true, text, size).x * 0.5f;
+    int i, n = (int)strlen(text);
+    char one[2] = { 0, 0 };
+    for (i = 0; i < n; i++) {
+        float a = letters - i;
+        Vector2 w;
+        one[0] = text[i];
+        w = MeasureTextEx(titleFont, one, size, spacing);
+        if (a > 0.0f) {
+            float k = a > 1.0f ? 1.0f : a;
+            Color glow = { c.r, (unsigned char)(c.g * 0.7f), (unsigned char)(c.b * 0.4f), (unsigned char)(50 * k) };
+            DrawTextEx(titleFont, one, (Vector2){ x - 2, y - 2 }, size, spacing, glow);
+            DrawTextEx(titleFont, one, (Vector2){ x + 2, y + 2 }, size, spacing, glow);
+            DrawTextEx(titleFont, one, (Vector2){ x + 3, y + 4 }, size, spacing, (Color){ 0, 0, 0, (unsigned char)(200 * k) });
+            DrawTextEx(titleFont, one, (Vector2){ x, y }, size, spacing, (Color){ c.r, c.g, c.b, (unsigned char)(c.a * k) });
+        }
+        x += w.x + spacing;
+    }
+}
+
 static Color Alpha(Color c, float a)
 {
     c.a = (unsigned char)(c.a * Clamp01(a));
@@ -242,12 +266,6 @@ void UI_DrawHUD(const Game *g)
 
 /* ============================================================ menus */
 
-Rectangle UI_MenuItemRect(int index, int count)
-{
-    (void)count;
-    return (Rectangle){ SCREEN_W * 0.5f - 210, 372.0f + index * 60.0f, 420, 52 };
-}
-
 Rectangle UI_PauseItemRect(int index, int count)
 {
     (void)count;
@@ -261,24 +279,6 @@ static void DrawMenuItem(Rectangle r, const char *label, bool selected)
         DrawRectangleLinesEx(r, 2, (Color){ 220, 40, 40, 200 });
     }
     UI_TextCentered(false, label, r.x + r.width * 0.5f, r.y + 8, 34, selected ? (Color){ 255, 214, 200, 255 } : (Color){ 180, 60, 60, 255 });
-}
-
-void UI_DrawMenu(const Game *g)
-{
-    int actions[4], count, i;
-    const char *labels[4];
-
-    /* red and black: a blood-red wash fading to black behind the title */
-    DrawRectangleGradientV(0, 0, SCREEN_W, SCREEN_H / 2, (Color){ 60, 0, 4, 150 }, (Color){ 0, 0, 0, 90 });
-    DrawRectangleGradientV(0, SCREEN_H / 2, SCREEN_W, SCREEN_H / 2, (Color){ 0, 0, 0, 90 }, (Color){ 0, 0, 0, 220 });
-    UI_TextCentered(true, "THE ASHEN MONASTERY", SCREEN_W * 0.5f, 110, 112, (Color){ 200, 20, 28, 255 });
-    UI_TextCentered(false, "Climb. Break the bells. Bring them home.", SCREEN_W * 0.5f, 250, 34, (Color){ 230, 196, 186, 255 });
-
-    count = Game_MenuOptions(g, actions, labels);
-    for (i = 0; i < count; i++) DrawMenuItem(UI_MenuItemRect(i, count), labels[i], i == g->menuSel);
-
-    DrawRectangle(0, SCREEN_H - 50, SCREEN_W, 50, (Color){ 0, 0, 0, 150 });
-    UI_TextCentered(false, CONTROLS_TEXT, SCREEN_W * 0.5f, SCREEN_H - 42, 24, COL_FADED);
 }
 
 void UI_DrawPause(const Game *g)
