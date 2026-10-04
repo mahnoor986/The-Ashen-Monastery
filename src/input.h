@@ -19,7 +19,8 @@ typedef struct {
     bool click;          /* left click pressed (menus) */
     Vector2 mouse;       /* mouse position in virtual-screen pixels */
     bool debug, god, skipWing;   /* F1, F3, F4 */
-    bool showFps;        /* F2 */
+    bool showFps;        /* F6 */
+    bool togglePost;     /* F2: post-process on/off */
 } Input;
 
 Input Input_Read(void);  /* from keyboard + mouse */

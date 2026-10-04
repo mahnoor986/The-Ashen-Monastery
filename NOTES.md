@@ -110,3 +110,17 @@ Decisions made while building, and things worth knowing.
   background). Starting with `--wing N` also counts as reaching wing N.
 - Not done / ideas: no mouse-sensitivity option in a menu (edit `MOUSE_SENSITIVITY` in
   config.h), no per-wing music, ghosts only drawn faintly (not hidden) in the dark.
+
+# The Ashen Monastery upgrade (UPGRADE.md)
+- The spec named `UPGRADE_ASHEN.md`; the file in the repo is `UPGRADE.md` (same content).
+- The working Blackthorn Manor is tagged `submittable`.
+
+## Task 1 - PS1 look
+- `post.c`: the 3D scene renders into a 640x360 render texture (point filtering), then is drawn
+  up-scaled through `assets/shaders/post.fs` (red/black grade, crushed blacks, chromatic offset,
+  grain, vignette, red pulse, 5-bit colour + 4x4 ordered dither). UI is drawn after, crisp.
+- Because raylib texture modes can't nest, `Game_Draw` now does the whole frame itself:
+  low-res scene -> `Screen_Begin` -> post -> UI -> `Screen_End`.
+- PS1 vertex wobble in `world.vs` (snap to a 320x180 grid) is on; it looked fine in the shots.
+- F2 now toggles the post-process; the FPS counter moved to F6.
+- Pale tones (bone, wraiths) keep some pallor in the grade so they read against the red.

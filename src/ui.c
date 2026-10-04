@@ -4,6 +4,7 @@
 #include "ui.h"
 #include "game.h"
 #include "config.h"
+#include "post.h"
 
 static Font      titleFont, bodyFont;     /* module-private GPU resources */
 static bool      titleLoaded, bodyLoaded;
@@ -192,8 +193,9 @@ void UI_DrawHUD(const Game *g)
     float dashReady = 1.0f - Clamp01(p->dashCooldown / DASH_COOLDOWN);
     int i;
 
-    DrawTexturePro(vignette, (Rectangle){ 0, 0, (float)vignette.width, (float)vignette.height },
-                   (Rectangle){ 0, 0, SCREEN_W, SCREEN_H }, (Vector2){ 0 }, 0.0f, WHITE);
+    if (!Post_Enabled())        /* the post-process shader draws its own vignette */
+        DrawTexturePro(vignette, (Rectangle){ 0, 0, (float)vignette.width, (float)vignette.height },
+                       (Rectangle){ 0, 0, SCREEN_W, SCREEN_H }, (Vector2){ 0 }, 0.0f, WHITE);
     if (g->hurtFlash > 0.0f)
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Alpha((Color){ 150, 18, 28, 255 }, 0.45f * g->hurtFlash / HURT_FLASH_TIME));
 

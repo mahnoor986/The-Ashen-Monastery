@@ -13,6 +13,7 @@ static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;
 static Mesh     doorMesh, chestBody, chestLid, chestGold;   /* prop meshes */
+static int locSnap, locAmbientTint;
 static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
            locLightColor, locEntityLight, locIsEntity, locEmissive;
 
@@ -51,6 +52,8 @@ void Render_Init(void)
     if (hasShader) {
         shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(shader, "matModel");
         shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
+        locSnap = GetShaderLocation(shader, "snapGrid");
+        locAmbientTint = GetShaderLocation(shader, "ambientTint");
         locFogColor = GetShaderLocation(shader, "fogColor");
         locFogDensity = GetShaderLocation(shader, "fogDensity");
         locAmbient = GetShaderLocation(shader, "ambient");
@@ -107,6 +110,11 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
     SetV3(locFogColor, (Vector3){ FOG_COLOR_R, FOG_COLOR_G, FOG_COLOR_B });
     SetF(locFogDensity, wing->fogDensity);
     SetF(locAmbient, wing->ambient);
+    SetV3(locAmbientTint, (Vector3){ AMBIENT_TINT_R, AMBIENT_TINT_G, AMBIENT_TINT_B });
+    {
+        Vector2 snap = { PS1_WOBBLE ? PS1_WOBBLE_GRID_W : 0.0f, PS1_WOBBLE_GRID_H };
+        SetShaderValue(shader, locSnap, &snap, SHADER_UNIFORM_VEC2);
+    }
     SetF(locFlicker, Render_Flicker(time));
     SetV3(locLightPos, (Vector3){ playerPos.x, playerPos.y + PLAYER_LIGHT_HEIGHT, playerPos.z });
     SetF(locLightRadius, wing->playerLightRadius);

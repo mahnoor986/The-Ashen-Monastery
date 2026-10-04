@@ -42,9 +42,7 @@ int main(int argc, char **argv)
             float dt = GetFrameTime();
             if (dt > MAX_DT) dt = MAX_DT;
             Game_Update(&game, &in, dt);
-            Screen_Begin();
-            Game_Draw(&game);
-            Screen_End();
+            Game_Draw(&game);              /* renders the 3D scene, then the UI, then presents */
         }
     }
 

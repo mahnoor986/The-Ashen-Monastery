@@ -24,7 +24,8 @@ Input Input_Read(void)
     in.up = IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP);
     in.down = IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN);
     in.debug = IsKeyPressed(KEY_F1);
-    in.showFps = IsKeyPressed(KEY_F2);
+    in.showFps = IsKeyPressed(KEY_F6);
+    in.togglePost = IsKeyPressed(KEY_F2);
     in.god = IsKeyPressed(KEY_F3);
     in.skipWing = IsKeyPressed(KEY_F4);
     return in;

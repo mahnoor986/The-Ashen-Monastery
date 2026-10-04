@@ -8,6 +8,7 @@
 #include "screen.h"
 #include "textures.h"
 #include "render.h"
+#include "post.h"
 #include "character.h"
 #include "audio.h"
 #include "ui.h"
@@ -586,6 +587,8 @@ void Game_Update(Game *g, const Input *in, float dt)
     g->time += dt;
     Audio_Update();
     if (in->showFps) g->showFps = !g->showFps;
+    if (in->togglePost) Post_Toggle();
+    if (g->redPulse > 0.0f) g->redPulse = fmaxf(0.0f, g->redPulse - dt * 1.5f);
     if (g->shake > 0.0f) g->shake = fmaxf(0.0f, g->shake - SHAKE_DECAY * dt);
     if (g->hurtFlash > 0.0f) g->hurtFlash -= dt;
 
@@ -613,6 +616,7 @@ void Game_Init(Game *g, int startWing, bool directStart, bool autotest)
     g->autotest = autotest;
     Textures_Init();
     Render_Init();
+    Post_Init();
     Character_Init();
     if (Render_HasShader()) Character_SetShader(Render_Shader());
     UI_Init();
@@ -630,6 +634,7 @@ void Game_Shutdown(Game *g)
     Audio_Shutdown();
     UI_Shutdown();
     Character_Shutdown();
+    Post_Shutdown();
     Render_Shutdown();
     Textures_Shutdown();
 }
@@ -718,7 +723,6 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 void Game_Draw(Game *g)
 {
     Camera3D cam = g->rig.cam;
-    ClearBackground(COL_NEARBLACK);
 
     if (g->shake > 0.0f && !g->autotest) {
         float s = g->shake * g->shake * SHAKE_SIZE;
@@ -727,8 +731,15 @@ void Game_Draw(Game *g)
         cam.position = Vector3Add(cam.position, off);
         cam.target = Vector3Add(cam.target, off);
     }
+    /* 3D at low resolution, then up-scaled through the post-process, then crisp UI on top */
+    Post_BeginScene();
+    ClearBackground(COL_NEARBLACK);
     if (g->worldLoaded) DrawScene(g, cam, g->state != STATE_MENU);
+    Post_EndScene();
 
+    Screen_Begin();
+    ClearBackground(BLACK);
+    Post_Draw(g->time, 0, g->redPulse);
     switch (g->state) {
     case STATE_MENU:      UI_DrawMenu(g); break;
     case STATE_PLAYING:   UI_DrawHUD(g); break;
@@ -739,6 +750,7 @@ void Game_Draw(Game *g)
     }
     UI_DrawFade(g);
     if (g->showFps) DrawFPS(10, SCREEN_H - 24);
+    Screen_End();
 }
 
 /* ============================================================ autotest */
@@ -746,10 +758,7 @@ void Game_Draw(Game *g)
 static void Frame(Game *g, const Input *in, float dt, bool draw)
 {
     Game_Update(g, in, dt);
-    if (!draw) return;
-    Screen_Begin();
-    Game_Draw(g);
-    Screen_End();
+    if (draw) Game_Draw(g);
 }
 
 static void Simulate(Game *g, const Input *in, float seconds)
@@ -967,9 +976,12 @@ static void EnemyShowcase(Game *g)
     cam.fovy = 62.0f;
     cam.projection = CAMERA_PERSPECTIVE;
 
-    Screen_Begin();
+    Post_BeginScene();
     ClearBackground(COL_NEARBLACK);
     DrawScene(g, cam, true);
+    Post_EndScene();
+    Screen_Begin();
+    Post_Draw(g->time, 0, 0.0f);
     UI_TextCentered(false, "Skeleton  -  Ghost  -  Witch (winding up)  -  The Witch Queen", SCREEN_W * 0.5f, 16, 30, COL_BONE);
     Screen_End();
 }

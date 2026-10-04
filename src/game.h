@@ -71,6 +71,7 @@ typedef struct Game {
     int       bannerCount;
     float     shake;                   /* camera shake 0..1 */
     float     hurtFlash;
+    float     redPulse;                /* 0..1 full-screen red flash (bells) */
     float     fade;                    /* black overlay 0..1 */
     bool      leaving;                 /* fading out toward the next wing / victory */
     float     time;                    /* seconds since start */

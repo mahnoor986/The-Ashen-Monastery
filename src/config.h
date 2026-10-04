@@ -11,11 +11,21 @@
 #define MAX_DT          0.05f           /* frame dt is clamped to this (avoids huge steps after a stall) */
 #define AUTOTEST_FRAMES 90              /* frames simulated per wing in --autotest */
 
+/* ------------------------------------------------------------ PS1 look */
+#define POST_W              640         /* the 3D scene is rendered at this low resolution */
+#define POST_H              360
+#define POST_GRADE_STRENGTH 0.75f       /* 0 = original colours, 1 = full red/black grade */
+#define POST_GRAIN          0.06f       /* film grain strength */
+#define POST_DITHER         1           /* 1 = PS1 5-bit colour with ordered dither */
+#define PS1_WOBBLE          1           /* 1 = snap vertices to a coarse grid (PS1 wobble) */
+#define PS1_WOBBLE_GRID_W   320.0f      /* grid the vertices snap to (coarser = more wobble) */
+#define PS1_WOBBLE_GRID_H   180.0f
+
 /* --------------------------------------------------------------- palette */
 #define COL_BONE        (Color){ 226, 220, 200, 255 }   /* bone white: body text */
 #define COL_BLOOD       (Color){ 150,  18,  28, 255 }   /* blood red: danger, titles */
 #define COL_GOLD        (Color){ 232, 184,  88, 255 }   /* candle gold: highlights, treasures */
-#define COL_NEARBLACK   (Color){   5,   5,   9, 255 }   /* background / fog (matches FOG_COLOR) */
+#define COL_NEARBLACK   (Color){  13,   3,   3, 255 }   /* background / fog (matches FOG_COLOR) */
 
 /* ----------------------------------------------------------------- fonts */
 #define FONT_DIR        "assets/fonts"            /* searched recursively for the files below */
@@ -40,9 +50,12 @@
 #define TORCH_COLOR_R   1.00f           /* warm orange torch light */
 #define TORCH_COLOR_G   0.55f
 #define TORCH_COLOR_B   0.30f
-#define FOG_COLOR_R     0.02f           /* fog fades to this near-black */
-#define FOG_COLOR_G     0.02f
-#define FOG_COLOR_B     0.035f
+#define FOG_COLOR_R     0.05f           /* fog fades to this red-black */
+#define FOG_COLOR_G     0.01f
+#define FOG_COLOR_B     0.01f
+#define AMBIENT_TINT_R  1.20f           /* ambient light is tinted slightly red */
+#define AMBIENT_TINT_G  0.80f
+#define AMBIENT_TINT_B  0.80f
 #define PLAYER_LIGHT_R  0.55f           /* soft warm light carried by the player */
 #define PLAYER_LIGHT_G  0.45f
 #define PLAYER_LIGHT_B  0.36f
