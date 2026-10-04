@@ -25,6 +25,7 @@ uniform float flashRadius;
 uniform vec3  entityLight;   // torch light at a character (characters have no baked light)
 uniform float isEntity;      // 1 = use entityLight instead of the vertex color rgb
 uniform float emissive;      // 1 = ignore lighting (glowing things), 2 = also ignore fog (eyes)
+uniform float emissiveBoost; // > 1 while lightning flashes through the stained glass
 
 out vec4 finalColor;
 
@@ -42,7 +43,7 @@ void main()
     vec3 flash = flashColor * fd * fd;
 
     vec3 light = (ambient * ambientTint + baked * flicker + playerLight + flash) * shade;
-    vec3 color = texel.rgb * colDiffuse.rgb * mix(light, vec3(1.0), min(emissive, 1.0));
+    vec3 color = texel.rgb * colDiffuse.rgb * mix(light, vec3(emissiveBoost), min(emissive, 1.0));
 
     float dist = distance(fragPos, viewPos);
     float f = fogDensity * dist;

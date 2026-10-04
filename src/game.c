@@ -163,6 +163,29 @@ static void EnterMenu(Game *g)
 
 /* ============================================================ wing flow */
 
+/* Seconds until the next lightning strike (wing 5 is stormy). */
+static float NextLightning(int wing)
+{
+    float t = LIGHTNING_MIN + (LIGHTNING_MAX - LIGHTNING_MIN) * GetRandomValue(0, 100) / 100.0f;
+    return wing == WING_COUNT - 1 ? t * LIGHTNING_STORMY : t;
+}
+
+/* Lightning brightness 0..1: two quick flashes within 0.4 s. */
+static float LightningFlash(float age)
+{
+    float a = age < 0.0f ? 0.0f : fmaxf(0.0f, 1.0f - fabsf(age - 0.05f) / 0.08f);
+    float b = age < 0.0f ? 0.0f : 0.8f * fmaxf(0.0f, 1.0f - fabsf(age - 0.3f) / 0.1f);
+    return fminf(1.0f, a + b);
+}
+
+/* Distant bell tolls: every 25-40 s with all five bells, less often as they break, never after. */
+static float NextToll(const Game *g)
+{
+    int left = WING_COUNT - g->wing - (g->world.exitOpen ? 1 : 0);
+    float t = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
+    return left <= 0 ? 1e9f : t * (float)WING_COUNT / (float)left;
+}
+
 bool Game_LoadWing(Game *g, int wing)
 {
     int i;
@@ -210,6 +233,8 @@ bool Game_LoadWing(Game *g, int wing)
 
     Atmos_Reset(&g->atmos, g->world.start);
     g->tollTimer = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
+    g->lightningTimer = NextLightning(wing) * 0.4f;     /* the first storm comes sooner */
+    g->lightningAge = -1.0f;
     g->torchFlare = 0.0f;
 
     g->bannerCount = 0;
@@ -698,10 +723,26 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     UpdateExit(g, dt);
     UpdateParticles(g, dt);
 
+    /* lightning: the windows blaze white-blue twice, thunder follows 1-2 s later */
+    if (LIGHTNING_ENABLED) {
+        g->lightningTimer -= dt;
+        if (g->lightningTimer <= 0.0f) {
+            g->lightningTimer = NextLightning(g->wing);
+            g->lightningAge = 0.0f;
+            g->thunderPlayed = false;
+            Shake(g, 0.25f);
+        }
+        if (g->lightningAge >= 0.0f) {
+            g->lightningAge += dt;
+            if (!g->thunderPlayed && g->lightningAge > 1.3f) { g->thunderPlayed = true; Audio_Play(SND_THUNDER, 0.9f); }
+            if (g->lightningAge > 4.0f) g->lightningAge = -1.0f;
+        }
+    }
+
     /* a distant bell tolls: the lights flare up (red is kept for danger and magic) */
     g->tollTimer -= dt;
     if (g->tollTimer <= 0.0f) {
-        g->tollTimer = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
+        g->tollTimer = NextToll(g);
         Audio_Play(SND_BELL, 1.0f);
         g->torchFlare = 1.0f;
     }
@@ -922,6 +963,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
                                  : (Vector3){ cam.position.x, cam.position.y - PLAYER_LIGHT_HEIGHT, cam.position.z };
 
     Render_SetFlare(g->torchFlare);
+    Render_SetLightning(g->sanctum ? 0.0f : LightningFlash(g->lightningAge));
     Render_BeginFrame(g->sanctum ? &SANCTUM : &WINGS[g->wing], cam, lightAt, g->time);
     if (g->beamTime > 0.0f) {
         float f = g->beamTime / BEAM_TIME;
@@ -972,6 +1014,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 
     /* transparent pass: cobwebs, then ghosts far to near, without writing depth */
     Render_DrawWorldTransparent(&g->world);
+    if (!g->sanctum) Render_DrawWindowShafts(&g->world, g->time);
     qsort(ghosts, (size_t)nGhosts, sizeof(ghosts[0]), CompareFar);
     rlDrawRenderBatchActive();
     BeginBlendMode(BLEND_ALPHA);
@@ -1320,6 +1363,35 @@ static void DoorShot(Game *g)
     g->player.god = false;
 }
 
+/* A stained-glass window with its moonlight shaft, during a lightning flash (shots/window.png)
+ * and without (shots/window_dark.png). */
+static void WindowShot(Game *g, int wing)
+{
+    const Window *wn;
+    Game_NewGame(g, wing);
+    g->player.god = true;
+    if (g->world.windowCount == 0) return;
+    wn = &g->world.windows[g->world.windowCount / 2];
+    g->player.pos = Vector3Add(wn->center, Vector3Scale(wn->normal, 3.0f));
+    g->player.pos.y = 0.0f;
+    g->player.pos = Vector3Add(g->player.pos, Vector3Scale(wn->side, 1.2f));
+    g->player.yaw = g->rig.yaw = YawTo(g->player.pos, wn->center);
+    g->rig.pitch = 0.18f;
+    g->enemyCount = 0;
+    g->bannerCount = 0;
+    g->fade = 0.0f;
+    CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
+    g->lightningAge = -1.0f;
+    g->lightningTimer = 100.0f;
+    Game_Draw(g);
+    Screen_Save("shots/window_dark.png");
+    g->lightningAge = 0.05f;
+    Game_Draw(g);
+    Screen_Save("shots/window.png");
+    g->lightningAge = -1.0f;
+    g->player.god = false;
+}
+
 /* Every enemy type standing in front of the player (camera behind the player). */
 static void EnemyShowcase(Game *g)
 {
@@ -1529,6 +1601,7 @@ int Game_Autotest(Game *g)
         failures += SanctumTest(g);
         BossShot(g);
         DoorShot(g);
+        WindowShot(g, 1);
     } else {
         failures++;
     }

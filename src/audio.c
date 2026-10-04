@@ -42,6 +42,7 @@ static const SoundRole ROLES[SND_COUNT] = {
     [SND_DASH]     = { { RPG "cloth1.ogg", RPG "cloth2.ogg", RPG "cloth3.ogg" }, 0.60f, 0.10f },
     [SND_BELL]     = { { NULL }, 0.55f, 0.03f },     /* generated: see MakeBell() */
     [SND_BELL_BREAK] = { { NULL }, 1.0f, 0.0f },
+    [SND_THUNDER]  = { { NULL }, 0.9f, 0.08f },     /* generated: see MakeThunder() */
 };
 
 /* SND_BOLT plays pitched up so the knife whoosh sounds like a magic hiss */
@@ -118,6 +119,38 @@ static Sound MakeBell(float seconds, float crack)
     return s;
 }
 
+/* Thunder: low-passed noise with a sharp crack, then a long rolling rumble. */
+static Sound MakeThunder(void)
+{
+    const int rate = 22050, n = (int)(22050 * 3.5f);
+    short *data = MemAlloc((unsigned int)(n * sizeof(short)));
+    unsigned int seed = 4242u;
+    float lp1 = 0.0f, lp2 = 0.0f;
+    Wave wave;
+    Sound s;
+    int i;
+    for (i = 0; i < n; i++) {
+        float t = (float)i / rate, noise, env, v;
+        seed = seed * 1664525u + 1013904223u;
+        noise = ((seed >> 9) & 0xffff) / 32768.0f - 1.0f;
+        lp1 += (noise - lp1) * 0.05f;                  /* two one-pole low-pass filters: rumble */
+        lp2 += (lp1 - lp2) * 0.05f;
+        env = fminf(1.0f, t * 8.0f) * expf(-t * 0.9f) * (0.75f + 0.25f * sinf(t * 7.0f + sinf(t * 3.0f)));
+        v = lp2 * 9.0f * env + noise * expf(-t * 14.0f) * 0.35f;
+        if (v > 1.0f) v = 1.0f;
+        if (v < -1.0f) v = -1.0f;
+        data[i] = (short)(v * 30000.0f);
+    }
+    wave.frameCount = (unsigned int)n;
+    wave.sampleRate = (unsigned int)rate;
+    wave.sampleSize = 16;
+    wave.channels = 1;
+    wave.data = data;
+    s = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    return s;
+}
+
 void Audio_Init(bool enabled)
 {
     int r, v;
@@ -144,6 +177,8 @@ void Audio_Init(bool enabled)
     if (IsSoundValid(sounds[SND_BELL][0])) counts[SND_BELL] = 1;
     sounds[SND_BELL_BREAK][0] = MakeBell(2.5f, 0.7f);
     if (IsSoundValid(sounds[SND_BELL_BREAK][0])) counts[SND_BELL_BREAK] = 1;
+    sounds[SND_THUNDER][0] = MakeThunder();
+    if (IsSoundValid(sounds[SND_THUNDER][0])) counts[SND_THUNDER] = 1;
 
     if (FileExists(AMBIENCE_FILE)) {
         ambience = LoadMusicStream(AMBIENCE_FILE);

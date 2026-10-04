@@ -56,6 +56,14 @@ typedef struct {
     float param;         /* type-specific (length of a table, ...) */
 } Prop;
 
+/* A stained-glass window on an exterior wall (for the moonlight shafts and lightning). */
+typedef struct {
+    Vector3 center;      /* centre of the glass */
+    Vector3 normal;      /* points into the room */
+    Vector3 side;        /* along the wall */
+    float   halfWidth, sill, top;
+} Window;
+
 /* Axis-aligned collision box of a solid prop (floor plan). */
 typedef struct { float x0, z0, x1, z1; } Collider;
 
@@ -83,6 +91,7 @@ typedef struct {
     Prop  props[MAX_PROPS];      int propCount;
     Collider colliders[MAX_COLLIDERS]; int colliderCount;
     unsigned char window[WORLD_MAX_H][WORLD_MAX_W]; /* wall cell holds a window (bit per side) */
+    Window windows[MAX_WINDOWS]; int windowCount;
     unsigned char area[WORLD_MAX_H][WORLD_MAX_W];   /* AREA_* of every cell */
     unsigned char roomId[WORLD_MAX_H][WORLD_MAX_W]; /* 1-based room index, 0 = not a room */
     unsigned char island[WORLD_MAX_H][WORLD_MAX_W]; /* free-standing wall block inside a room */

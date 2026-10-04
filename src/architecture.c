@@ -315,6 +315,134 @@ static float CorniceTop(const World *w, int x, int z)
     return IsVaulted(w, x, z) ? VAULT_SPRING : ROOM_HEIGHT;
 }
 
+/* ============================================================ windows */
+
+/* Is the wall cell (wx, wz), seen from the inside in direction d, an outside wall? (Only solid
+ * cells between it and the map border, so the moon can shine in.) */
+static bool IsExterior(const World *w, int wx, int wz, int d)
+{
+    int x = wx, z = wz;
+    while (InBounds(w, x, z)) {
+        if (IsOpen(w, x, z)) return false;
+        x += DX[d];
+        z += DZ[d];
+    }
+    return true;
+}
+
+static bool WindowWall(const World *w, int x, int z, int d)
+{
+    int wx = x + DX[d], wz = z + DZ[d];
+    char c;
+    if (!IsOpen(w, x, z) || w->grid[z][x] == 'E' || IsOpen(w, wx, wz) || !InBounds(w, wx, wz)) return false;
+    c = w->grid[wz][wx];
+    return (c == '#' || c == 'W') && !w->island[wz][wx] && IsExterior(w, wx, wz, d);
+}
+
+/* Window heights for a cell: sill, where the lancets start curving, apex. */
+static void WindowSize(const World *w, int x, int z, float *sill, float *spring, float *apex)
+{
+    if (w->area[z][x] == AREA_ROOM) { *sill = 1.4f; *spring = 3.1f; *apex = 3.82f; }
+    else                            { *sill = 1.0f; *spring = 2.3f; *apex = 2.95f; }
+}
+
+/* Pointed-arch windows every ~5 cells along outside walls (rooms and corridors), each a cold
+ * blue light source. Marked before the props are placed so nothing stands in front of them. */
+static void FindWindows(World *w)
+{
+    int x, z, d;
+    memset(w->window, 0, sizeof(w->window));
+    w->windowCount = 0;
+    for (d = 0; d < 4; d++) {
+        for (z = 0; z < w->h; z++) {
+            for (x = 0; x < w->w; x++) {
+                bool alongX = DZ[d] != 0;
+                int along = alongX ? x : z, k, run = 0;
+                float sill, spring, apex;
+                Vector2 A, B, n;
+                Vector3 c;
+                if (!WindowWall(w, x, z, d)) continue;
+                /* position within the straight run of window-able wall: skip the ends */
+                for (k = 1; k < 3 && WindowWall(w, x - (alongX ? k : 0), z - (alongX ? 0 : k), d); k++) run++;
+                if (run < 1 || !WindowWall(w, x + (alongX ? 1 : 0), z + (alongX ? 0 : 1), d)) continue;
+                if ((along + (int)(Hash01(d, alongX ? z : x, 5) * 3.0f)) % WINDOW_SPACING != 0) continue;
+                if (w->windowCount >= MAX_WINDOWS) continue;
+                w->window[z + DZ[d]][x + DX[d]] |= (unsigned char)(1 << d);
+                WindowSize(w, x, z, &sill, &spring, &apex);
+                EdgeOf(x, z, d, &A, &B, &n);
+                c = (Vector3){ (A.x + B.x) * 0.5f, (sill + apex) * 0.5f, (A.y + B.y) * 0.5f };
+                w->windows[w->windowCount].center = (Vector3){ c.x + n.x * 0.03f, c.y, c.z + n.y * 0.03f };
+                w->windows[w->windowCount].normal = (Vector3){ n.x, 0.0f, n.y };
+                w->windows[w->windowCount].side = Vector3Normalize((Vector3){ B.x - A.x, 0.0f, B.y - A.y });
+                w->windows[w->windowCount].halfWidth = 0.38f;
+                w->windows[w->windowCount].sill = sill;
+                w->windows[w->windowCount].top = apex;
+                w->windowCount++;
+                World_AddLight(w, (Vector3){ c.x + n.x * 1.2f, c.y - 0.3f, c.z + n.y * 1.2f },
+                               (Vector3){ MOON_R, MOON_G, MOON_B }, WINDOW_LIGHT_RADIUS);
+            }
+        }
+    }
+}
+
+/* One lancet of glass: columns from x0 to x1 (wall-local), pointed top, UVs over the whole window. */
+static void Lancet(Geo *g, Frame f, float x0, float x1, float sill, float spring, float apex, float wx0, float wx1)
+{
+    const int seg = 4;
+    int i;
+    for (i = 0; i < seg; i++) {
+        float a = x0 + (x1 - x0) * i / seg, b = x0 + (x1 - x0) * (i + 1) / seg;
+        float ta = spring + (apex - spring) * Profile((a - x0) / (x1 - x0));
+        float tb = spring + (apex - spring) * Profile((b - x0) / (x1 - x0));
+        Vector3 p[4] = { Frame_Point(f, a, sill, 0.03f), Frame_Point(f, b, sill, 0.03f),
+                         Frame_Point(f, b, tb, 0.03f), Frame_Point(f, a, ta, 0.03f) };
+        float ua = (a - wx0) / (wx1 - wx0), ub = (b - wx0) / (wx1 - wx0);
+        Vector2 uv[4] = { { ua, 1.0f }, { ub, 1.0f }, { ub, 1.0f - (tb - sill) / (apex - sill) }, { ua, 1.0f - (ta - sill) / (apex - sill) } };
+        Geo_QuadUV(g, MAT_GLASS, p, uv, false);
+    }
+}
+
+/* A pointed-arch window with two lancets, a mullion, a stone sill, a trim frame and a small
+ * diamond of glass in the tracery above the lancets. */
+static void BuildWindow(Geo *g, int x, int z, int d)
+{
+    const World *w = g->w;
+    const float hw = 0.40f, band = 0.09f, seg = 2 * ARCH_SEGMENTS;
+    float sill, spring, apex, ls, la;
+    Vector2 A, B, n;
+    Frame f;
+    int i;
+    WindowSize(w, x, z, &sill, &spring, &apex);
+    EdgeOf(x, z, d, &A, &B, &n);
+    f.o = (Vector3){ (A.x + B.x) * 0.5f, 0.0f, (A.y + B.y) * 0.5f };
+    f.yaw = atan2f(n.x, n.y);
+    ls = spring;                                   /* lancets: lower apex than the outer arch */
+    la = spring + (apex - spring) * 0.55f;
+    Lancet(g, f, -0.36f, -0.03f, sill, ls, la, -0.36f, 0.36f);
+    Lancet(g, f, 0.03f, 0.36f, sill, ls, la, -0.36f, 0.36f);
+    {
+        /* diamond light in the tracery */
+        float cy = (la + apex) * 0.5f + 0.02f, r = (apex - la) * 0.32f;
+        Vector3 p[4] = { Frame_Point(f, 0, cy - r, 0.03f), Frame_Point(f, r * 0.8f, cy, 0.03f),
+                         Frame_Point(f, 0, cy + r, 0.03f), Frame_Point(f, -r * 0.8f, cy, 0.03f) };
+        const Vector2 uv[4] = { { 0.5f, 0.35f }, { 0.6f, 0.2f }, { 0.5f, 0.05f }, { 0.4f, 0.2f } };
+        Geo_QuadUV(g, MAT_GLASS, p, uv, false);
+    }
+    Geo_FBox(g, MAT_TRIM, f, 0, (sill + la) * 0.5f, 0.05f, 0.03f, (la - sill) * 0.5f, 0.05f);    /* mullion */
+    Geo_FBox(g, MAT_TRIM, f, 0, sill - 0.06f, 0.1f, hw + 0.08f, 0.06f, 0.12f);                   /* sill */
+    Geo_FBox(g, MAT_TRIM, f, -hw - band * 0.5f, (sill + spring) * 0.5f, 0.05f, band * 0.5f, (spring - sill) * 0.5f, 0.05f);  /* jambs */
+    Geo_FBox(g, MAT_TRIM, f, hw + band * 0.5f, (sill + spring) * 0.5f, 0.05f, band * 0.5f, (spring - sill) * 0.5f, 0.05f);
+    for (i = 0; i < (int)seg; i++) {                /* the arch band around the top */
+        float t0 = i / seg, t1 = (i + 1) / seg;
+        float x0 = -hw + 2 * hw * t0, x1 = -hw + 2 * hw * t1;
+        float y0 = spring + (apex - spring) * Profile(t0), y1 = spring + (apex - spring) * Profile(t1);
+        float X0 = -(hw + band) + 2 * (hw + band) * t0, X1 = -(hw + band) + 2 * (hw + band) * t1;
+        float Y0 = spring + (apex + band - spring) * Profile(t0), Y1 = spring + (apex + band - spring) * Profile(t1);
+        Geo_Quad(g, MAT_TRIM, Frame_Point(f, x0, y0, 0.1f), Frame_Point(f, x1, y1, 0.1f), Frame_Point(f, X1, Y1, 0.1f), Frame_Point(f, X0, Y0, 0.1f));
+        Geo_Quad(g, MAT_TRIM, Frame_Point(f, x1, y1, 0.0f), Frame_Point(f, x1, y1, 0.1f), Frame_Point(f, x0, y0, 0.1f), Frame_Point(f, x0, y0, 0.0f));
+    }
+}
+
 /* The wall of open cell (x,z) toward solid neighbour direction d: main face, plinth, cornice;
  * bookshelf walls get shelves of books up to BOOKSHELF_HEIGHT. */
 static void WallEdge(Geo *g, int x, int z, int d)
@@ -348,6 +476,7 @@ static void WallEdge(Geo *g, int x, int z, int d)
         EdgeBox(g, MAT_TRIM, A, B, n, PLINTH_DEPTH, 0.0f, PLINTH_HEIGHT);
     }
     EdgeBox(g, MAT_TRIM, A, B, n, CORNICE_DEPTH, corn - CORNICE_HEIGHT, corn);
+    if (w->window[nz][nx] & (1 << d)) BuildWindow(g, x, z, d);
 }
 
 /* Where a lower open cell (corridor) meets a higher one (room): the room wall continues above
@@ -597,7 +726,7 @@ static void Pilaster(Geo *g, Vector2 p, Vector2 n, float top)
 static bool IsPlainWall(const World *w, int x, int z)
 {
     char c;
-    if (!InBounds(w, x, z)) return false;
+    if (!InBounds(w, x, z) || w->window[z][x]) return false;
     c = w->grid[z][x];
     return c == '#' || c == 'W';
 }
@@ -830,6 +959,7 @@ void World_BuildMeshes(World *w)
     w->colliderCount = 0;
     for (z = 0; z < w->h; z++)
         for (x = 0; x < w->w; x++) w->ceiling[z][x] = IsOpen(w, x, z) ? CellCeiling(w, x, z) : 0.0f;
+    FindWindows(w);                 /* before props (they keep clear of windows) */
     Props_Place(w);                 /* before baking: candles and lanterns light the walls too */
     g.w = w;
     for (cz = 0; cz < ncz; cz++) {

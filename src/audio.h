@@ -20,6 +20,7 @@ typedef enum {
     SND_DASH,        /* dash */
     SND_BELL,        /* distant bell toll (generated in code) */
     SND_BELL_BREAK,  /* a cursed bell shatters (generated in code) */
+    SND_THUNDER,     /* thunder after lightning (generated in code) */
     SND_COUNT
 } SoundId;
 

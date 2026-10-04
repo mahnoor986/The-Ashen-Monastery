@@ -86,6 +86,9 @@ typedef struct Game {
     float     redPulse;                /* 0..1 full-screen red flash (bells) */
     Atmos     atmos;                   /* falling ash + rising embers */
     float     tollTimer;               /* seconds until the next distant bell toll */
+    float     lightningTimer;          /* seconds until the next lightning strike */
+    float     lightningAge;            /* seconds since the last strike (< 0: none) */
+    bool      thunderPlayed;
     float     torchFlare;              /* 0..1 torches flare up when the bell tolls */
     float     beamTime;                /* > 0 while the red lightning is visible */
     Vector3   beamEnd;                 /* where the lightning struck */

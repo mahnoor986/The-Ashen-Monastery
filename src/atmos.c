@@ -47,9 +47,10 @@ void Atmos_Update(Atmos *a, Vector3 center, const World *w, float dt)
             e->pos.z += cosf(a->time * 2.3f + e->phase) * 0.25f * dt;
             continue;
         }
-        /* respawn at a random torch near the camera */
-        if (w->torchCount > 0) {
-            const Torch *t = &w->torches[GetRandomValue(0, w->torchCount - 1)];
+        /* respawn at a random torch or fire near the camera (not at candles) */
+        if (w->flameCount > 0) {
+            const Flame *t = &w->flames[GetRandomValue(0, w->flameCount - 1)];
+            if (t->size < 0.9f) continue;
             float dx = t->pos.x - center.x, dz = t->pos.z - center.z;
             if (dx * dx + dz * dz > EMBER_RANGE * EMBER_RANGE) continue;
             e->pos = (Vector3){ t->pos.x + Rand(-0.08f, 0.08f), t->pos.y + 0.1f, t->pos.z + Rand(-0.08f, 0.08f) };

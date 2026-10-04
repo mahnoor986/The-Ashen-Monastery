@@ -307,3 +307,20 @@ Decisions made while building, and things worth knowing.
   dark glass with a sheen); 5 the great bell hanging high in the biggest room, ropes, broken pews,
   rubble; Sanctum: chandeliers, candelabras, candles.
 - Two more generated materials: `MAT_POTION` (emissive green) and `MAT_MIRROR`.
+
+## Item 8 - Windows, moonlight, weather
+- Windows (`FindWindows` in architecture.c, before props): on outside walls (only solid cells
+  between the wall and the map border) of rooms and corridors, about every 5 cells, never at the
+  end of a wall run. Each is a pointed arch with two pointed lancets of generated stained glass
+  (emissive), a mullion, a stone sill, trim jambs + arch band and a small diamond light in the
+  tracery; each adds a cold moonlight source (0.55, 0.65, 0.9). Props and pilasters avoid them.
+  The Scriptorium has few windows because its walls are bookshelves.
+- Moonlight shafts (`Render_DrawWindowShafts`): an additive pale-blue prism from each window to
+  the floor (falls 0.7 sideways per unit of drop), a soft patch on the floor and 6 drifting dust
+  motes per window. Transparent pass, both sides, no depth writes.
+- Lightning: every 20-45 s (wing 5: x0.45), two flashes within 0.4 s (`LightningFlash`): ambient
+  jumps, the glass blazes (`emissiveBoost` uniform), the shafts flare white; thunder 1.3 s later
+  (`SND_THUNDER`, synthesised: filtered noise crack + rolling rumble). `LIGHTNING_ENABLED` in config.
+- Bell tolls get rarer as bells break (interval x 5 / bells left) and stop after the fifth.
+- Embers now rise only from real fires (sconce torches, fireplaces), not candles or windows.
+- New screenshots: `shots/window.png` (lightning) and `shots/window_dark.png`.

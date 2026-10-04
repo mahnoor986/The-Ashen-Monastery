@@ -12,6 +12,7 @@
 
 static float    flare;        /* 0..1 torch flare when a bell tolls */
 static bool     debugBright;  /* --bright: flat bright ambient to inspect geometry */
+static float    lightning;    /* 0..1 lightning flash */
 static bool     warm;         /* Sanctum: golden fog and ambient */
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
@@ -21,7 +22,7 @@ static Mesh     leafWood, leafMetal;                         /* one exit door le
 static Mesh     chestWood, chestMetal, lidWood, lidMetal, chestGold;   /* reliquary chest */
 static int locSnap, locAmbientTint, locFlashPos, locFlashColor, locFlashRadius;
 static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
-           locLightColor, locEntityLight, locIsEntity, locEmissive;
+           locLightColor, locEntityLight, locIsEntity, locEmissive, locEmissiveBoost;
 
 /* ------------------------------------------------------------ prop meshes */
 
@@ -209,6 +210,7 @@ void Render_Init(void)
         locEntityLight = GetShaderLocation(shader, "entityLight");
         locIsEntity = GetShaderLocation(shader, "isEntity");
         locEmissive = GetShaderLocation(shader, "emissive");
+        locEmissiveBoost = GetShaderLocation(shader, "emissiveBoost");
     } else {
         printf("warning: world shader not loaded, using raylib's default shader (no fog)\n");
     }
@@ -274,7 +276,8 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
     SetV3(locFogColor, warm ? (Vector3){ SANCTUM_FOG_R, SANCTUM_FOG_G, SANCTUM_FOG_B }
                             : (Vector3){ FOG_COLOR_R, FOG_COLOR_G, FOG_COLOR_B });
     SetF(locFogDensity, wing->fogDensity);
-    SetF(locAmbient, debugBright ? 1.6f : wing->ambient);
+    SetF(locAmbient, debugBright ? 1.6f : wing->ambient + lightning * 0.55f);
+    SetF(locEmissiveBoost, 1.0f + 2.5f * lightning);
     SetV3(locAmbientTint, warm ? (Vector3){ SANCTUM_TINT_R, SANCTUM_TINT_G, SANCTUM_TINT_B }
                                : (Vector3){ AMBIENT_TINT_R, AMBIENT_TINT_G, AMBIENT_TINT_B });
     {
@@ -397,6 +400,77 @@ void Render_DrawChest(Vector3 pos, float yaw, float lid, Vector3 light)
         Render_SetEmissive(false);
     }
     Render_UseWorldLight();
+}
+
+void Render_SetLightning(float amount)
+{
+    lightning = amount;
+}
+
+/* One shaft face from window edge (a, b) down to floor edge (c, d), fading out toward the floor. */
+static void ShaftQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color top, Color bottom)
+{
+    rlColor4ub(top.r, top.g, top.b, top.a);    rlVertex3f(a.x, a.y, a.z);
+    rlColor4ub(bottom.r, bottom.g, bottom.b, bottom.a); rlVertex3f(d.x, d.y, d.z);
+    rlColor4ub(bottom.r, bottom.g, bottom.b, bottom.a); rlVertex3f(c.x, c.y, c.z);
+    rlColor4ub(top.r, top.g, top.b, top.a);    rlVertex3f(b.x, b.y, b.z);
+}
+
+/* Moonlight falling through each window onto the floor: a translucent pale-blue prism drawn
+ * additively (both sides, no depth writes), a soft patch on the floor and a few dust motes
+ * drifting slowly inside it. Lightning makes them flare white. */
+void Render_DrawWindowShafts(const World *w, float time)
+{
+    const float fall = 0.7f;                         /* sideways drift of the light per unit of drop */
+    float k = 1.0f + 3.0f * lightning;
+    Color top = { (unsigned char)fminf(255.0f, 120 + 100 * lightning), (unsigned char)fminf(255.0f, 150 + 80 * lightning), 255,
+                  (unsigned char)fminf(255.0f, 34 * k) };
+    Color bottom = { top.r, top.g, top.b, (unsigned char)fminf(255.0f, 5 * k) };
+    Color floorCol = { top.r, top.g, top.b, (unsigned char)fminf(255.0f, 22 * k) };
+    int i, m;
+
+    rlDrawRenderBatchActive();
+    BeginBlendMode(BLEND_ADDITIVE);
+    rlDisableDepthMask();
+    rlDisableBackfaceCulling();
+    rlSetTexture(0);
+    rlBegin(RL_QUADS);
+    for (i = 0; i < w->windowCount; i++) {
+        const Window *wn = &w->windows[i];
+        Vector3 s = Vector3Scale(wn->side, wn->halfWidth), n = wn->normal;
+        Vector3 c0 = { wn->center.x, wn->sill, wn->center.z }, c1 = { wn->center.x, wn->top - 0.25f, wn->center.z };
+        Vector3 wl0 = Vector3Subtract(c0, s), wr0 = Vector3Add(c0, s), wl1 = Vector3Subtract(c1, s), wr1 = Vector3Add(c1, s);
+        /* where each window edge lands on the floor */
+        Vector3 fl0 = Vector3Add(wl0, (Vector3){ n.x * wn->sill * fall, -wn->sill + 0.02f, n.z * wn->sill * fall });
+        Vector3 fr0 = Vector3Add(wr0, (Vector3){ n.x * wn->sill * fall, -wn->sill + 0.02f, n.z * wn->sill * fall });
+        Vector3 fl1 = Vector3Add(wl1, (Vector3){ n.x * c1.y * fall, -c1.y + 0.02f, n.z * c1.y * fall });
+        Vector3 fr1 = Vector3Add(wr1, (Vector3){ n.x * c1.y * fall, -c1.y + 0.02f, n.z * c1.y * fall });
+        ShaftQuad(wl1, wr1, fr1, fl1, top, bottom);            /* upper sheet */
+        ShaftQuad(wl0, wr0, fr0, fl0, top, bottom);            /* lower sheet */
+        ShaftQuad(wl1, wl0, fl0, fl1, top, bottom);            /* sides */
+        ShaftQuad(wr0, wr1, fr1, fr0, top, bottom);
+        ShaftQuad(fl0, fr0, fr1, fl1, floorCol, floorCol);     /* patch on the floor */
+    }
+    rlEnd();
+
+    /* dust motes: tiny specks drifting down and sideways through each shaft */
+    for (i = 0; i < w->windowCount; i++) {
+        const Window *wn = &w->windows[i];
+        for (m = 0; m < DUST_PER_WINDOW; m++) {
+            float t = fmodf(time * 0.04f + m * 0.173f + i * 0.31f, 1.0f);
+            float h = wn->top - 0.4f - t * (wn->top - 0.6f);
+            float side = sinf(time * 0.3f + m * 2.1f + i) * wn->halfWidth * 0.9f;
+            float drop = wn->top - 0.4f - h;
+            Vector3 p = Vector3Add(wn->center, Vector3Add(Vector3Scale(wn->side, side),
+                                   (Vector3){ wn->normal.x * (0.25f + drop * fall), h - wn->center.y, wn->normal.z * (0.25f + drop * fall) }));
+            unsigned char a = (unsigned char)(140 * sinf(t * PI));
+            DrawCube(p, 0.025f, 0.025f, 0.025f, (Color){ 200, 215, 255, a });
+        }
+    }
+    rlDrawRenderBatchActive();
+    rlEnableBackfaceCulling();
+    rlEnableDepthMask();
+    EndBlendMode();
 }
 
 void Render_SetDebugBright(bool on)

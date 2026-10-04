@@ -58,6 +58,12 @@
 #define MAX_FLAMES      512
 #define MAX_PROPS       512
 #define MAX_COLLIDERS   384
+#define MAX_WINDOWS     64
+#define WINDOW_SPACING  5               /* a window every ~5 cells along exterior walls */
+#define MOON_R          0.55f           /* cold moonlight through the windows */
+#define MOON_G          0.65f
+#define MOON_B          0.90f
+#define WINDOW_LIGHT_RADIUS 6.5f
 #define MAX_CHESTS      8
 #define MAX_EXIT_CELLS  4
 #define MAX_SPAWNS      64
@@ -194,8 +200,13 @@
 #define ASH_WIND_Z          0.12f
 #define EMBER_COUNT         60          /* orange embers rising from torches */
 #define EMBER_RANGE         14.0f       /* only torches this close to the camera spark */
-#define BELL_TOLL_MIN       25.0f       /* a distant bell tolls every 25-40 s */
+#define BELL_TOLL_MIN       25.0f       /* a distant bell tolls every 25-40 s (less often as bells break) */
 #define BELL_TOLL_MAX       40.0f
+#define LIGHTNING_ENABLED   1           /* 0 = no lightning storms */
+#define LIGHTNING_MIN       20.0f       /* seconds between lightning strikes */
+#define LIGHTNING_MAX       45.0f
+#define LIGHTNING_STORMY    0.45f       /* wing 5: intervals x this (frequent lightning) */
+#define DUST_PER_WINDOW     6           /* drifting dust motes in each moonlight shaft */
 
 /* ----------------------------------------------------------------- audio */
 #define MASTER_VOLUME       0.9f
