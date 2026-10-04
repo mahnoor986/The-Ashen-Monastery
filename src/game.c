@@ -37,9 +37,9 @@ static const WingConfig SANCTUM = SANCTUM_CONFIG;
 
 const char *const INTRO_LINES[INTRO_LINE_COUNT] = {
     "Ten nights ago, the Red Abbot cast five bells from the ashes of the dead.",
-    "Each time they toll, the monastery burns, and the monks forget who they were.",
+    "He hid his life in five cursed relics, and in the serpent he keeps caged in the tower.",
     "Master Oren and the other apprentices are trapped in the Sanctum at the summit.",
-    "Climb, Kael. Break the bells.",
+    "Climb, Kael. Destroy the relics. Break the bells.",
 };
 
 /* ============================================================ small helpers */
@@ -1108,7 +1108,7 @@ static int FlowTest(Game *g)
     in.swing = true;
     Frame(g, &in, 1.0f / 60.0f, false);
     Simulate(g, &none, WAND_COOLDOWN + 0.1f);
-    fails += Check(e->hp == MONK_HP - 1, "red lightning (aim assist) damages a skeleton");
+    fails += Check(e->hp == MONK_HP - 1, "red lightning (aim assist) damages an Ashen Monk");
     e->pos = Vector3Add(g->player.pos, (Vector3){ -0.9f, 0.0f, -0.9f });
     Frame(g, &in, 1.0f / 60.0f, false);
     Simulate(g, &none, WAND_COOLDOWN + 0.1f);
@@ -1128,7 +1128,7 @@ static int FlowTest(Game *g)
     e->alerted = true;
     g->enemyCount = 1;
     for (i = 0; i < 300 && g->state == STATE_PLAYING; i++) Frame(g, &none, 1.0f / 60.0f, false);
-    fails += Check(g->state == STATE_DEAD, "a skeleton's telegraphed attack can kill you");
+    fails += Check(g->state == STATE_DEAD, "an Ashen Monk's telegraphed attack can kill you");
     in = none;
     in.confirm = true;
     Frame(g, &in, 1.0f / 60.0f, false);
@@ -1144,7 +1144,7 @@ static int BalanceTest(Game *g)
 {
     Input in = { 0 };
     int i, fails = 0;
-    printf("\nbalance test (wing 1, mashing left click vs 2 skeletons):\n");
+    printf("\nbalance test (wing 1, mashing left click vs 2 Ashen Monks):\n");
     Game_NewGame(g, 0);
     g->enemyCount = 2;
     for (i = 0; i < 2; i++) {
@@ -1157,7 +1157,7 @@ static int BalanceTest(Game *g)
         Frame(g, &in, 1.0f / 60.0f, false);
     printf("  hearts left: %d of %d after %.1f s\n", g->player.hearts, PLAYER_MAX_HEARTS, i / 60.0f);
     fails += Check(g->state == STATE_PLAYING && !g->enemies[0].alive && !g->enemies[1].alive,
-                   "both skeletons are beaten");
+                   "both monks are beaten");
     fails += Check(g->player.hearts >= 3, "with at least 3 hearts to spare");
     return fails;
 }
@@ -1189,14 +1189,14 @@ static int QueenTest(Game *g)
     Enemy *queen = NULL;
     int fails = 0, i, before, safety;
 
-    printf("\nqueen test (wing 5):\n");
+    printf("\nabbot test (wing 5):\n");
     Game_NewGame(g, WING_COUNT - 1);
     g->player.god = true;
     for (i = 0; i < g->enemyCount; i++) if (g->enemies[i].type == EN_ABBOT) queen = &g->enemies[i];
-    fails += Check(queen != NULL, "the Witch Queen is in the throne room");
+    fails += Check(queen != NULL, "the Red Abbot is in the bell tower");
     if (!queen) return fails;
     for (i = 0; i < g->world.chestCount; i++) OpenChest(g, i);
-    fails += Check(!g->world.exitOpen, "gate stays shut while the Queen lives");
+    fails += Check(!g->world.exitOpen, "exit stays shut while the Abbot lives");
 
     /* stand next to her and fight */
     before = g->enemyCount;
@@ -1210,11 +1210,11 @@ static int QueenTest(Game *g)
             g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
             queen->visible = true;
         }
-        if (safety == 0) fails += Check(g->abbotAlerted, "the boss bar appears once she is alerted");
+        if (safety == 0) fails += Check(g->abbotAlerted, "the boss bar appears once he is alerted");
     }
-    fails += Check(g->enemyCount == before + 2, "at half health she summons two ghosts");
-    fails += Check(!queen->alive && g->abbotDead, "the Queen can be destroyed");
-    fails += Check(g->world.exitOpen, "the manor gate opens");
+    fails += Check(g->enemyCount == before + 2, "at half health he summons two Choir Wraiths");
+    fails += Check(!queen->alive && g->abbotDead, "the Abbot can be destroyed");
+    fails += Check(g->world.exitOpen, "the exit opens");
     StandNextTo(g, g->world.exits[0]);
     in = none;
     in.move.y = 1.0f;

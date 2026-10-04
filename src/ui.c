@@ -14,7 +14,7 @@ static Texture2D vignette;
 
 static float Clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
 #define CONTROLS_TEXT "WASD move  \xC2\xB7  Mouse look  \xC2\xB7  Left click Red Lightning  \xC2\xB7  Shift dash  \xC2\xB7  " \
-                      "Hold E open chest  \xC2\xB7  I treasures  \xC2\xB7  Esc pause"
+                      "Hold E open chest  \xC2\xB7  I inventory  \xC2\xB7  Esc pause"
 
 /* ============================================================ fonts + text */
 
@@ -169,7 +169,7 @@ static void DrawChestPrompt(const Game *g)
     p = Clamp01(g->useHold / CHEST_HOLD_TIME);
     DrawRing(c, 26, 36, 0, 360, 48, (Color){ 0, 0, 0, 150 });
     if (p > 0.0f) DrawRing(c, 27, 35, -90.0f, -90.0f + 360.0f * p, 48, COL_GOLD);
-    UI_TextCentered(false, p > 0.0f ? "Opening..." : "[E] Hold to open reliquary", c.x, c.y + 48, 30, COL_BONE);
+    UI_TextCentered(false, p > 0.0f ? "Opening..." : "[E] Hold to open chest", c.x, c.y + 48, 30, COL_BONE);
 }
 
 static void DrawBossBar(const Game *g)
@@ -281,7 +281,7 @@ void UI_DrawMenu(const Game *g)
 
 void UI_DrawPause(const Game *g)
 {
-    static const char *items[3] = { "Resume", "Restart wing", "Quit to menu" };
+    static const char *items[3] = { "Resume", "Restart wing", "Quit to title" };
     int i;
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 0, 0, 0, 160 });
     UI_TextCentered(true, "Paused", SCREEN_W * 0.5f, 170, 90, COL_BONE);

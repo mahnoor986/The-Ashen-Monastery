@@ -1,4 +1,39 @@
-# Blackthorn Manor — Build Notes
+# The Ashen Monastery — Build Notes
+
+## Master spec status (CLAUDE.md, section 16) — checked 2026-10-04
+
+The combined master spec replaced CLAUDE.md. Old specs moved to `docs/old_specs/`
+(`CLAUDE_blackthorn_manor.md`, `UPGRADE_ASHEN.md`; there was no `ENVIRONMENT_PS1.md`).
+Mood photos are in `reference/` (used for palette/lighting/room types only; the castle is original).
+
+| # | Item | Status at the start |
+|---|------|---------------------|
+| 1 | Story, names, texts | mostly done (Ashen names, seals, death screen, Sanctum); intro lines 2/4 and a few prompts differ |
+| 2 | Red Lightning wand | done (aim assist, ray march, crackling bolt + forks, red flash light, synth crack) |
+| 3 | PS1 pipeline, moonlit grade | partly: 640x360 + post.fs exist, but the grade is the old red/black one |
+| 4 | `--tour` screenshots | not started |
+| 5 | Materials, world-space UVs | not started (one 4x4 atlas, per-face UVs) |
+| 6 | Architecture from the grid | not started (block walls) |
+| 7 | Props, room themes | not started |
+| 8 | Windows, moonlight, weather | partly (bell tolls, embers, ash exist) |
+| 9 | Per-pixel lighting, palette, mood | not started (baked vertex torch light) |
+| 10 | Minimap + full map | not started |
+| 11 | Enemy restyle, model slots | partly (red eyes, twitching, tall/thin; still boxes) |
+| 12 | Title screen + menus | not started (menu over wing 1) |
+| 13 | Relics, serpent, immortal boss | not started |
+| 14 | Sanctum ending | mostly done (needs the new architecture/props) |
+| 15 | Wrap up | — |
+
+Environment: the spec's `C:/Users/NAT/...` paths don't exist on this PC; the real paths are
+`C:/Users/HP GM/Downloads/w64devkit/bin` and `C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64`
+(the Makefile default). Screenshots are exported from the virtual-screen render texture instead of
+`LoadImageFromScreen` (the window is scaled to fit this 1024x768 monitor; the texture is always 1280x720).
+
+Progress log (newest last) is in the "Master spec" sections at the end of this file.
+
+---
+
+# History: Blackthorn Manor build notes
 
 Decisions made while building, and things worth knowing.
 
