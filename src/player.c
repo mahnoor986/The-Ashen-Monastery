@@ -36,7 +36,7 @@ int Player_Update(Player *p, const CameraRig *rig, const World *w, const Input *
     if (p->dashCooldown > 0.0f) p->dashCooldown -= dt;
     if (p->swingTime >= 0.0f) {
         p->swingTime += dt;
-        if (p->swingTime >= SWORD_COOLDOWN) p->swingTime = -1.0f;
+        if (p->swingTime >= WAND_COOLDOWN) p->swingTime = -1.0f;
     }
     if (Vector3Length(wish) > 1.0f) wish = Vector3Normalize(wish);
 
@@ -54,7 +54,7 @@ int Player_Update(Player *p, const CameraRig *rig, const World *w, const Input *
         p->vel = Vector3Scale(p->dashDir, DASH_SPEED);
     } else {
         /* ease velocity toward the target so starts/stops feel smooth but responsive */
-        target = Vector3Scale(wish, PLAYER_SPEED * (p->swingTime >= 0.0f ? 0.55f : 1.0f));
+        target = Vector3Scale(wish, PLAYER_SPEED * (p->swingTime >= 0.0f && p->swingTime < CAST_POSE_TIME ? 0.55f : 1.0f));
         k = fminf(1.0f, PLAYER_ACCEL * dt);
         p->vel = Vector3Lerp(p->vel, target, k);
     }
@@ -93,9 +93,13 @@ void Player_StartSwing(Player *p, float yaw)
     p->swingId++;
 }
 
-bool Player_SwingActive(const Player *p)
+Vector3 Player_WandTip(const Player *p)
 {
-    return p->swingTime >= 0.0f && p->swingTime < SWORD_ACTIVE;
+    /* the model faces +Z, its right hand is at -X; while casting the arm points straight ahead */
+    bool casting = p->swingTime >= 0.0f && p->swingTime < CAST_POSE_TIME;
+    float lx = -0.38f, ly = casting ? 1.36f : 0.72f, lz = casting ? 0.93f : 0.45f;
+    Vector3 ax = { cosf(p->yaw), 0.0f, -sinf(p->yaw) }, az = { sinf(p->yaw), 0.0f, cosf(p->yaw) };
+    return (Vector3){ p->pos.x + ax.x * lx + az.x * lz, p->pos.y + ly, p->pos.z + ax.z * lx + az.z * lz };
 }
 
 bool Player_Hurt(Player *p, Vector3 from)
@@ -118,7 +122,7 @@ void Player_Draw(const Player *p)
     pose.walkPhase = p->walkPhase;
     pose.walkAmount = p->dashTime > 0.0f ? 0.3f : fminf(1.0f, Vector3Length(p->vel) / PLAYER_SPEED);
     pose.time = p->time;
-    pose.swing = p->swingTime >= 0.0f ? fminf(1.0f, p->swingTime / SWORD_ACTIVE) : -1.0f;
+    pose.swing = (p->swingTime >= 0.0f && p->swingTime < CAST_POSE_TIME) ? p->swingTime / CAST_POSE_TIME : -1.0f;
     pose.blink = (p->invuln > 0.0f && fmodf(p->invuln, 0.16f) > 0.09f) ? 1.0f : 0.0f;
     Character_DrawKnight(&pose);
 }

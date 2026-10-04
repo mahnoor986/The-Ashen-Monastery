@@ -87,14 +87,16 @@
 #define DASH_TIME           0.15f
 #define DASH_COOLDOWN       0.8f
 
-/* ----------------------------------------------------------------- sword */
-#define SWORD_ACTIVE        0.25f       /* seconds the swing can hit */
-#define SWORD_COOLDOWN      0.40f       /* seconds between swings */
-#define SWORD_RANGE         2.0f        /* reach from the player center */
-#define SWORD_ARC_DEG       130.0f      /* width of the hit arc in front */
-#define SWORD_DAMAGE        1
-#define SWORD_KNOCKBACK     4.0f        /* units/s, decays */
-#define AIM_ASSIST_RANGE    3.0f        /* swinging snaps to the nearest enemy within this range */
+/* ------------------------------------------------------ wand: Red Lightning */
+#define WAND_COOLDOWN       0.45f       /* seconds between casts */
+#define WAND_RANGE          12.0f       /* how far the lightning reaches */
+#define WAND_DAMAGE         1
+#define WAND_KNOCKBACK      4.0f        /* units/s, decays */
+#define AIM_ASSIST_RANGE    WAND_RANGE  /* casting snaps to the nearest visible enemy this close */
+#define CAST_POSE_TIME      0.2f        /* the arm points at the target this long */
+#define BEAM_TIME           0.15f       /* the lightning bolt stays visible this long */
+#define BEAM_SEGMENTS       10          /* jagged segments per bolt */
+#define FLASH_RADIUS        6.0f        /* red light at the hit point lights up the walls */
 
 /* ---------------------------------------------------------------- chests */
 #define CHEST_HOLD_TIME     1.5f        /* seconds to hold E */

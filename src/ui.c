@@ -13,7 +13,7 @@ static Texture2D vignette;
 #define COL_FADED (Color){ 150, 140, 128, 255 }
 
 static float Clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
-#define CONTROLS_TEXT "WASD move  \xC2\xB7  Mouse look  \xC2\xB7  Left click swing  \xC2\xB7  Shift dash  \xC2\xB7  " \
+#define CONTROLS_TEXT "WASD move  \xC2\xB7  Mouse look  \xC2\xB7  Left click Red Lightning  \xC2\xB7  Shift dash  \xC2\xB7  " \
                       "Hold E open chest  \xC2\xB7  I treasures  \xC2\xB7  Esc pause"
 
 /* ============================================================ fonts + text */
@@ -210,7 +210,8 @@ void UI_DrawHUD(const Game *g)
     UI_TextCentered(true, g->world.name, SCREEN_W * 0.5f, 12, 40, Alpha(COL_BONE, 0.9f));
 
     DrawTreasureList(g);
-    DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 2.5f, (Color){ 226, 220, 200, 170 });    /* crosshair dot */
+    DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 3.5f, (Color){ 0, 0, 0, 160 });           /* crosshair: red dot */
+    DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 2.5f, (Color){ 230, 30, 30, 230 });
     DrawChestPrompt(g);
     DrawBossBar(g);
     DrawBanner(g);

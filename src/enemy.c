@@ -83,7 +83,7 @@ bool Enemy_Hurt(Enemy *e, int damage, Vector3 from)
     away = Vector3Subtract(e->pos, from);
     away.y = 0.0f;
     if (Vector3Length(away) > 0.01f)
-        e->knock = Vector3Scale(Vector3Normalize(away), SWORD_KNOCKBACK * (e->type == EN_QUEEN ? QUEEN_KNOCK_MUL : 1.0f));
+        e->knock = Vector3Scale(Vector3Normalize(away), WAND_KNOCKBACK * (e->type == EN_QUEEN ? QUEEN_KNOCK_MUL : 1.0f));
     if (e->type != EN_QUEEN) e->windup = -1.0f;   /* a hit staggers normal enemies */
     if (e->hp <= 0) { e->alive = false; return true; }
     return false;

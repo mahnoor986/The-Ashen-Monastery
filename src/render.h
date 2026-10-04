@@ -19,6 +19,7 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
 void Render_UseWorldLight(void);                 /* baked vertex light (world chunks) */
 void Render_UseEntityLight(Vector3 light);       /* a character standing in this torch light */
 void Render_SetEmissive(bool on);                /* glowing: no lighting, only fog */
+void Render_SetFlash(Vector3 pos, Vector3 color, float radius);   /* lightning flash light */
 
 void Render_DrawWorld(const World *w, float time);    /* call inside BeginMode3D */
 /* A treasure chest; `lid` 0 = closed .. 1 = open (an open chest glows gold inside). */

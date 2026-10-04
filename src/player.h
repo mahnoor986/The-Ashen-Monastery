@@ -1,5 +1,5 @@
 /* player.h - the knight: movement relative to the camera, dash, sword swing timing, hearts,
- * and the third-person orbit camera with wall collision. */
+ * and the third-person orbit camera with wall collision. "Swing" = casting the wand. */
 #ifndef PLAYER_H
 #define PLAYER_H
 
@@ -20,8 +20,8 @@ typedef struct {
     float   dashTime;     /* > 0 while dashing */
     float   dashCooldown;
     Vector3 dashDir;
-    float   swingTime;    /* seconds since the swing started, < 0 when not swinging */
-    int     swingId;      /* increases every swing, so each enemy is hit once per swing */
+    float   swingTime;    /* seconds since the last cast started, < 0 when ready */
+    int     swingId;      /* increases every cast */
     float   stepTimer;    /* footstep sound timer */
     bool    god;          /* F3 debug: can't be hurt */
 } Player;
@@ -40,7 +40,7 @@ void Player_Init(Player *p, Vector3 start, float yaw);
 int  Player_Update(Player *p, const CameraRig *rig, const World *w, const Input *in, float dt);
 bool Player_CanSwing(const Player *p);
 void Player_StartSwing(Player *p, float yaw);
-bool Player_SwingActive(const Player *p);      /* the sword can hit right now */
+Vector3 Player_WandTip(const Player *p);       /* where the Red Lightning starts */
 /* Take one heart of damage from `from`. Returns false if invulnerable (blinking, dashing, god). */
 bool Player_Hurt(Player *p, Vector3 from);
 void Player_Draw(const Player *p);

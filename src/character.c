@@ -84,7 +84,7 @@ void Character_DrawKnight(const CharPose *p)
     const Color steelDark = { 66, 70, 82, 255 }, steel = { 104, 108, 122, 255 };
     const Color steelLight = { 152, 158, 172, 255 }, crimson = { 138, 18, 28, 255 };
     const Color leather = { 58, 38, 24, 255 }, gold = { 196, 156, 70, 255 };
-    const Color visor = { 8, 8, 12, 255 }, blade = { 200, 206, 218, 255 };
+    const Color visor = { 8, 8, 12, 255 }, wood = { 46, 28, 18, 255 };
     float swingLeg = sinf(p->walkPhase) * 0.6f * p->walkAmount;
     float bob = fabsf(cosf(p->walkPhase)) * 0.05f * p->walkAmount + sinf(p->time * 2.2f) * 0.012f;
     float armRx = -0.35f, armRy = 0.0f;
@@ -118,23 +118,21 @@ void Character_DrawKnight(const CharPose *p)
     Part(arm, (Vector3){ 0.0f, -0.28f, 0.0f }, (Vector3){ 0.19f, 0.58f, 0.21f }, steel);
     Part(arm, (Vector3){ 0.0f, -0.56f, 0.0f }, (Vector3){ 0.22f, 0.13f, 0.24f }, steelDark);
 
-    /* right arm holds the sword; during a swing it sweeps a 120 degree arc in front */
+    /* right arm holds the wand; casting snaps it straight forward, pointing at the target */
     if (p->swing >= 0.0f) {
-        float s = p->swing;
-        armRx = -1.45f;
-        armRy = 1.05f - 2.1f * (s * s * (3.0f - 2.0f * s));    /* smoothstep from left to right */
+        armRx = -1.55f;
+        armRy = 0.0f;
     } else {
         armRx += swingLeg * 0.4f;
     }
     arm = Joint(body, (Vector3){ -0.38f, 1.36f, 0.0f }, armRx, armRy, 0.0f);
     Part(arm, (Vector3){ 0.0f, -0.28f, 0.0f }, (Vector3){ 0.19f, 0.58f, 0.21f }, steel);
     Part(arm, (Vector3){ 0.0f, -0.56f, 0.0f }, (Vector3){ 0.22f, 0.13f, 0.24f }, steelDark);
-    /* sword, held at the wrist: points forward at rest, in line with the arm while swinging */
-    hand = Joint(arm, (Vector3){ 0.0f, -0.58f, 0.0f }, p->swing >= 0.0f ? 1.3f : 0.0f, 0.0f, 0.0f);
-    Part(hand, (Vector3){ 0.0f, 0.0f, -0.03f }, (Vector3){ 0.05f, 0.05f, 0.18f }, leather);   /* grip */
-    Part(hand, (Vector3){ 0.0f, 0.0f, -0.14f }, (Vector3){ 0.08f, 0.08f, 0.06f }, gold);      /* pommel */
-    Part(hand, (Vector3){ 0.0f, 0.0f, 0.09f }, (Vector3){ 0.32f, 0.05f, 0.06f }, gold);       /* crossguard */
-    Part(hand, (Vector3){ 0.0f, 0.0f, 0.58f }, (Vector3){ 0.07f, 0.03f, 0.92f }, blade);      /* blade */
+    /* wand, held at the wrist: forward-down at rest, in line with the arm while casting */
+    hand = Joint(arm, (Vector3){ 0.0f, -0.58f, 0.0f }, p->swing >= 0.0f ? 1.57f : 0.6f, 0.0f, 0.0f);
+    Part(hand, (Vector3){ 0.0f, 0.0f, 0.15f }, (Vector3){ 0.045f, 0.045f, 0.36f }, wood);     /* dark wood */
+    Part(hand, (Vector3){ 0.0f, 0.0f, 0.0f }, (Vector3){ 0.06f, 0.06f, 0.08f }, gold);        /* grip band */
+    GlowPart(hand, (Vector3){ 0.0f, 0.0f, 0.35f }, (Vector3){ 0.08f, 0.08f, 0.08f }, (Color){ 255, 40, 30, 255 });
 
     /* helmet with a dark visor slit (cross shape) and a crimson crest */
     head = Joint(body, (Vector3){ 0.0f, 1.42f, 0.0f }, 0.0f, 0.0f, 0.0f);

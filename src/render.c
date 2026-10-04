@@ -13,7 +13,7 @@ static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;
 static Mesh     doorMesh, chestBody, chestLid, chestGold;   /* prop meshes */
-static int locSnap, locAmbientTint;
+static int locSnap, locAmbientTint, locFlashPos, locFlashColor, locFlashRadius;
 static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
            locLightColor, locEntityLight, locIsEntity, locEmissive;
 
@@ -53,6 +53,9 @@ void Render_Init(void)
         shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocation(shader, "matModel");
         shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
         locSnap = GetShaderLocation(shader, "snapGrid");
+        locFlashPos = GetShaderLocation(shader, "flashPos");
+        locFlashColor = GetShaderLocation(shader, "flashColor");
+        locFlashRadius = GetShaderLocation(shader, "flashRadius");
         locAmbientTint = GetShaderLocation(shader, "ambientTint");
         locFogColor = GetShaderLocation(shader, "fogColor");
         locFogDensity = GetShaderLocation(shader, "fogDensity");
@@ -119,8 +122,17 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
     SetV3(locLightPos, (Vector3){ playerPos.x, playerPos.y + PLAYER_LIGHT_HEIGHT, playerPos.z });
     SetF(locLightRadius, wing->playerLightRadius);
     SetV3(locLightColor, (Vector3){ PLAYER_LIGHT_R, PLAYER_LIGHT_G, PLAYER_LIGHT_B });
+    Render_SetFlash((Vector3){ 0 }, (Vector3){ 0 }, 1.0f);
     Render_UseWorldLight();
     Render_SetEmissive(false);
+}
+
+void Render_SetFlash(Vector3 pos, Vector3 color, float radius)
+{
+    if (!hasShader) return;
+    SetV3(locFlashPos, pos);
+    SetV3(locFlashColor, color);
+    SetF(locFlashRadius, radius);
 }
 
 void Render_UseWorldLight(void)

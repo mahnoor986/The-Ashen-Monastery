@@ -19,6 +19,9 @@ uniform float flicker;       // global torch flicker (about 0.88)
 uniform vec3  lightPos;      // player light
 uniform float lightRadius;
 uniform vec3  lightColor;
+uniform vec3  flashPos;      // red lightning flash (point light)
+uniform vec3  flashColor;
+uniform float flashRadius;
 uniform vec3  entityLight;   // torch light at a character (characters have no baked light)
 uniform float isEntity;      // 1 = use entityLight instead of the vertex color rgb
 uniform float emissive;      // 1 = ignore lighting (glowing things)
@@ -35,7 +38,10 @@ void main()
     float p = clamp(1.0 - d / lightRadius, 0.0, 1.0);
     vec3 playerLight = lightColor * p * p;
 
-    vec3 light = (ambient * ambientTint + baked * flicker + playerLight) * shade;
+    float fd = clamp(1.0 - distance(fragPos, flashPos) / max(flashRadius, 0.001), 0.0, 1.0);
+    vec3 flash = flashColor * fd * fd;
+
+    vec3 light = (ambient * ambientTint + baked * flicker + playerLight + flash) * shade;
     vec3 color = texel.rgb * colDiffuse.rgb * mix(light, vec3(1.0), emissive);
 
     float dist = distance(fragPos, viewPos);

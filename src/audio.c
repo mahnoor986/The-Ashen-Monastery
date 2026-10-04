@@ -1,6 +1,7 @@
 /* audio.c - loads the sound effects / ambience if present and plays them (see audio.h).
  * Files come from the Kenney "RPG Audio" + "Impact Sounds" packs and OpenGameArt (CREDITS.md). */
 #include <stddef.h>
+#include <math.h>
 #include "raylib.h"
 #include "audio.h"
 #include "config.h"
@@ -18,7 +19,7 @@ typedef struct {
 
 /* Best matching file(s) for every sound role (see CLAUDE.md section 9). */
 static const SoundRole ROLES[SND_COUNT] = {
-    [SND_SWING]    = { { RPG "drawKnife1.ogg", RPG "drawKnife2.ogg", RPG "drawKnife3.ogg" }, 0.55f, 0.10f },
+    [SND_ZAP]      = { { NULL }, 0.75f, 0.08f },     /* generated: see MakeCrack() */
     [SND_HIT]      = { { IMPACT "impactPlate_medium_000.ogg", IMPACT "impactPlate_medium_001.ogg",
                          IMPACT "impactPlate_medium_002.ogg" }, 0.70f, 0.08f },
     [SND_HURT]     = { { IMPACT "impactPunch_heavy_000.ogg", IMPACT "impactPunch_heavy_001.ogg",
@@ -42,12 +43,45 @@ static const SoundRole ROLES[SND_COUNT] = {
 };
 
 /* SND_BOLT plays pitched up so the knife whoosh sounds like a magic hiss */
-static const float BASE_PITCH[SND_COUNT] = { [SND_SWING] = 1.0f, [SND_BOLT] = 1.6f };
+static const float BASE_PITCH[SND_COUNT] = { [SND_ZAP] = 1.0f, [SND_BOLT] = 1.6f };
 
 static Sound sounds[SND_COUNT][MAX_VARIANTS];   /* module-private audio resources */
 static int   counts[SND_COUNT];
 static Music ambience;
 static bool  hasAmbience, ready;
+
+/* Red Lightning crack, synthesised: a sharp noise burst + a falling electric whine + a low thump. */
+static Sound MakeCrack(void)
+{
+    const int rate = 44100, n = (int)(44100 * 0.4f);
+    short *data = MemAlloc((unsigned int)(n * sizeof(short)));
+    unsigned int seed = 1234567u;
+    float phase = 0.0f;
+    Wave wave;
+    Sound s;
+    int i;
+    for (i = 0; i < n; i++) {
+        float t = (float)i / rate, noise, freq, v;
+        seed = seed * 1664525u + 1013904223u;
+        noise = ((seed >> 9) & 0xffff) / 32768.0f - 1.0f;
+        freq = 200.0f + 2400.0f * expf(-t * 10.0f);
+        phase += 2.0f * PI * freq / rate;
+        v = noise * expf(-t * 18.0f) * 0.85f
+          + sinf(phase) * expf(-t * 12.0f) * 0.35f
+          + sinf(2.0f * PI * 65.0f * t) * expf(-t * 15.0f) * 0.6f;
+        if (v > 1.0f) v = 1.0f;
+        if (v < -1.0f) v = -1.0f;
+        data[i] = (short)(v * 30000.0f);
+    }
+    wave.frameCount = (unsigned int)n;
+    wave.sampleRate = (unsigned int)rate;
+    wave.sampleSize = 16;
+    wave.channels = 1;
+    wave.data = data;
+    s = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    return s;
+}
 
 void Audio_Init(bool enabled)
 {
@@ -69,6 +103,9 @@ void Audio_Init(bool enabled)
             if (IsSoundValid(s)) sounds[r][counts[r]++] = s;
         }
     }
+    sounds[SND_ZAP][0] = MakeCrack();
+    if (IsSoundValid(sounds[SND_ZAP][0])) counts[SND_ZAP] = 1;
+
     if (FileExists(AMBIENCE_FILE)) {
         ambience = LoadMusicStream(AMBIENCE_FILE);
         hasAmbience = IsMusicValid(ambience);

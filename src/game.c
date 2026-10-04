@@ -350,77 +350,112 @@ static void HurtPlayer(Game *g, Vector3 from)
     if (g->player.hearts <= 0) Die(g);
 }
 
-/* Left click: swing. Aim assist turns the knight toward the nearest enemy in reach. */
-static void TrySwing(Game *g, const Input *in)
+/* Height of an enemy's chest (where the lightning aims) and how big a target it is. */
+static Vector3 EnemyChest(const Enemy *e)
 {
-    int i, best = -1;
-    float bestD = 1e9f, yaw = g->rig.yaw;
+    float y = e->type == EN_QUEEN ? 1.9f : (e->type == EN_GHOST ? 1.4f : 1.1f);
+    return (Vector3){ e->pos.x, y, e->pos.z };
+}
+
+static float EnemyRadius(const Enemy *e)
+{
+    return e->type == EN_QUEEN ? 0.95f : e->size * 0.5f + 0.3f;
+}
+
+/* Damage one enemy with the wand (sparks, sounds, death, the Queen's fall). */
+static void DamageEnemy(Game *g, Enemy *e)
+{
+    Vector3 fx = EnemyChest(e);
+    Audio_Play(SND_HIT, 1.0f);
+    if (Enemy_Hurt(e, WAND_DAMAGE, g->player.pos)) {
+        Color bits = e->type == EN_SKELETON ? (Color){ 222, 214, 192, 255 }
+                   : e->type == EN_GHOST    ? (Color){ 196, 218, 255, 255 } : (Color){ 150, 60, 200, 255 };
+        g->enemiesSlain++;
+        Audio_Play(SND_DEATH, 1.0f);
+        SpawnParticles(g, fx, e->type == EN_QUEEN ? 80 : 30, bits, 2.6f, 0.09f, 1.6f);
+        if (e->type == EN_QUEEN) {
+            g->queenDead = true;
+            Shake(g, 1.0f);
+            PushBanner(g, "The Witch Queen is destroyed!", "", COL_GOLD, BANNER_TIME);
+            CheckWingComplete(g);
+        }
+    }
+}
+
+/* Left click: Red Lightning. Aim assist turns Kael toward the nearest enemy that can be hurt
+ * and is in sight; otherwise the bolt follows the camera. The bolt is a ray marched from the wand
+ * tip: it stops at the first wall or enemy and destroys any fireball it passes through. */
+static void CastLightning(Game *g, const Input *in)
+{
+    int i, best = -1, hitEnemy = -1;
+    float bestD = 1e9f, yaw = g->rig.yaw, t, len;
+    Vector3 origin, aim, dir, hit;
+    Vector3 eye = { g->player.pos.x, 1.5f, g->player.pos.z };
+
     if (!in->swing || !Player_CanSwing(&g->player)) return;
     for (i = 0; i < g->enemyCount; i++) {
         const Enemy *e = &g->enemies[i];
         float d;
-        if (!e->alive) continue;
-        d = FlatDist(g->player.pos, e->pos) - e->size * 0.5f;
-        if (d < AIM_ASSIST_RANGE && d < bestD) { bestD = d; best = i; }
+        if (!Enemy_CanBeHurt(e)) continue;
+        d = FlatDist(g->player.pos, e->pos);
+        if (d < AIM_ASSIST_RANGE && d < bestD && World_LineOfSight(&g->world, eye, EnemyChest(e))) { bestD = d; best = i; }
     }
     if (best >= 0) yaw = YawTo(g->player.pos, g->enemies[best].pos);
     Player_StartSwing(&g->player, yaw);
-    Audio_Play(SND_SWING, 1.0f);
-}
+    origin = Player_WandTip(&g->player);
 
-static bool InSwordArc(const Game *g, Vector3 target, float radius)
-{
-    float d = FlatDist(g->player.pos, target);
-    if (d > SWORD_RANGE + radius) return false;
-    if (d < 0.6f + radius) return true;
-    return fabsf(AngleDiff(g->player.yaw, YawTo(g->player.pos, target))) <= SWORD_ARC_DEG * 0.5f * DEG2RAD;
-}
-
-static void SwordHits(Game *g)
-{
-    int i;
-    if (!Player_SwingActive(&g->player)) return;
-    for (i = 0; i < g->enemyCount; i++) {
-        Enemy *e = &g->enemies[i];
-        Vector3 fx = { e->pos.x, 1.1f, e->pos.z };
-        if (!e->alive || e->lastSwingId == g->player.swingId || !InSwordArc(g, e->pos, e->size * 0.5f)) continue;
-        e->lastSwingId = g->player.swingId;
-        if (!Enemy_CanBeHurt(e)) {
-            /* a ghost in the dark: the blade passes straight through */
-            SpawnParticles(g, fx, 6, (Color){ 150, 170, 220, 255 }, 1.0f, 0.05f, 0.6f);
-            if (!g->ghostHintShown) {
-                g->ghostHintShown = true;
-                PushBanner(g, "Your blade passes through!", "Ghosts can only be hurt in the light - fight them near you or a torch",
-                           (Color){ 170, 200, 255, 255 }, BANNER_TIME + 1.0f);
-            }
-            continue;
-        }
-        Audio_Play(SND_HIT, 1.0f);
-        Shake(g, 0.25f);
-        if (Enemy_Hurt(e, SWORD_DAMAGE, g->player.pos)) {
-            Color bits = e->type == EN_SKELETON ? (Color){ 222, 214, 192, 255 }
-                       : e->type == EN_GHOST    ? (Color){ 196, 218, 255, 255 } : (Color){ 150, 60, 200, 255 };
-            g->enemiesSlain++;
-            Audio_Play(SND_DEATH, 1.0f);
-            SpawnParticles(g, fx, e->type == EN_QUEEN ? 80 : 30, bits, 2.6f, 0.09f, 1.6f);
-            if (e->type == EN_QUEEN) {
-                g->queenDead = true;
-                Shake(g, 1.0f);
-                PushBanner(g, "The Witch Queen is destroyed!", "", COL_GOLD, BANNER_TIME);
-                CheckWingComplete(g);
-            }
-        } else {
-            SpawnParticles(g, fx, 8, (Color){ 200, 30, 30, 255 }, 1.6f, 0.05f, 0.7f);
+    if (best >= 0) {
+        aim = EnemyChest(&g->enemies[best]);
+    } else {
+        /* follow the crosshair: the first wall along the camera's view (or max range) */
+        Vector3 fwd = Vector3Normalize(Vector3Subtract(g->rig.cam.target, g->rig.cam.position));
+        aim = Vector3Add(g->rig.cam.position, Vector3Scale(fwd, WAND_RANGE + g->rig.dist));
+        for (t = g->rig.dist + 0.5f; t < WAND_RANGE + g->rig.dist; t += 0.1f) {
+            Vector3 q = Vector3Add(g->rig.cam.position, Vector3Scale(fwd, t));
+            if (World_IsWallCell(&g->world, (int)floorf(q.x), (int)floorf(q.z)) || q.y < 0.0f || q.y > WALL_HEIGHT) { aim = q; break; }
         }
     }
-    /* the sword also shatters hex bolts */
-    for (i = 0; i < MAX_BOLTS; i++) {
-        Bolt *b = &g->bolts[i];
-        if (!b->active || !InSwordArc(g, b->pos, 0.3f)) continue;
-        b->active = false;
-        Audio_Play(SND_BOLT_HIT, 1.0f);
-        SpawnParticles(g, b->pos, 12, (Color){ 190, 90, 255, 255 }, 1.5f, 0.05f, 0.6f);
+    dir = Vector3Subtract(aim, origin);
+    len = Vector3Length(dir);
+    dir = len > 0.001f ? Vector3Scale(dir, 1.0f / len) : (Vector3){ sinf(yaw), 0.0f, cosf(yaw) };
+
+    /* march the ray */
+    hit = Vector3Add(origin, Vector3Scale(dir, WAND_RANGE));
+    for (t = 0.0f; t < WAND_RANGE && hitEnemy < 0; t += 0.1f) {
+        Vector3 p = Vector3Add(origin, Vector3Scale(dir, t));
+        if (World_IsWallCell(&g->world, (int)floorf(p.x), (int)floorf(p.z)) || p.y < 0.0f || p.y > WALL_HEIGHT) { hit = p; break; }
+        for (i = 0; i < MAX_BOLTS; i++) {
+            Bolt *b = &g->bolts[i];
+            if (b->active && Vector3Distance(b->pos, p) < 0.4f) {
+                b->active = false;
+                Audio_Play(SND_BOLT_HIT, 1.0f);
+                SpawnParticles(g, b->pos, 12, (Color){ 255, 120, 40, 255 }, 1.5f, 0.05f, 0.6f);
+            }
+        }
+        for (i = 0; i < g->enemyCount; i++) {
+            Enemy *e = &g->enemies[i];
+            if (!e->alive || Vector3Distance(p, EnemyChest(e)) > EnemyRadius(e)) continue;
+            if (!Enemy_CanBeHurt(e)) {
+                /* a wraith in the dark: the lightning passes straight through */
+                if (!g->ghostHintShown) {
+                    g->ghostHintShown = true;
+                    PushBanner(g, "Your lightning passes through!", "Ghosts can only be hurt in the light - fight them near you or a torch",
+                               (Color){ 170, 200, 255, 255 }, BANNER_TIME + 1.0f);
+                }
+                continue;
+            }
+            hitEnemy = i;
+            hit = p;
+            break;
+        }
     }
+    if (hitEnemy >= 0) DamageEnemy(g, &g->enemies[hitEnemy]);
+
+    g->beamTime = BEAM_TIME;
+    g->beamEnd = hit;
+    SpawnParticles(g, hit, 14, (Color){ 255, 50, 40, 255 }, 2.0f, 0.05f, 0.5f);
+    Shake(g, 0.15f);
+    Audio_Play(SND_ZAP, 1.0f);
 }
 
 static void ApplyEnemyEvents(Game *g, const EnemyEvents *ev)
@@ -510,10 +545,10 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     if (events & PLAYER_EV_DASH) Audio_Play(SND_DASH, 1.0f);
     CameraRig_Update(&g->rig, &g->player, &g->world, &cam, dt);
 
-    TrySwing(g, in);
+    if (g->beamTime > 0.0f) g->beamTime -= dt;
+    CastLightning(g, in);
     UpdateEnemies(g, dt);
     if (g->state != STATE_PLAYING) return;          /* died */
-    SwordHits(g);
     UpdateChests(g, in, dt);
     UpdateExit(g, dt);
     UpdateParticles(g, dt);
@@ -660,6 +695,53 @@ static void DrawDebug3D(const Game *g)
                      (Vector3){ 1, 0, 0 }, 90.0f, GOLD);
 }
 
+/* Red Lightning: a jagged bolt from the wand tip to the hit point. The kinks are re-randomised
+ * every frame so it crackles; each segment is a wide red glow plus a thin bright core. */
+static void BeamSegment(Vector3 a, Vector3 b, float fade)
+{
+    DrawCylinderEx(a, b, 0.07f, 0.07f, 5, (Color){ 220, 20, 30, (unsigned char)(150 * fade) });
+    DrawCylinderEx(a, b, 0.02f, 0.02f, 4, (Color){ 255, 190, 190, (unsigned char)(255 * fade) });
+}
+
+static float Jitter(void) { return GetRandomValue(-100, 100) / 100.0f; }
+
+static void DrawBeam(const Game *g)
+{
+    Vector3 a = Player_WandTip(&g->player), d = Vector3Subtract(g->beamEnd, a), side, up;
+    Vector3 pts[BEAM_SEGMENTS + 1];
+    float len = Vector3Length(d), fade = g->beamTime / BEAM_TIME, wiggle;
+    int i, k, j;
+
+    if (g->beamTime <= 0.0f || len < 0.05f) return;
+    d = Vector3Scale(d, 1.0f / len);
+    side = Vector3CrossProduct(d, (Vector3){ 0.0f, 1.0f, 0.0f });
+    side = Vector3Length(side) < 0.01f ? (Vector3){ 1.0f, 0.0f, 0.0f } : Vector3Normalize(side);
+    up = Vector3CrossProduct(side, d);
+    wiggle = 0.22f * fminf(1.0f, len / 3.0f);
+    for (i = 0; i <= BEAM_SEGMENTS; i++) {
+        float t = (float)i / BEAM_SEGMENTS, j1 = (i == 0 || i == BEAM_SEGMENTS) ? 0.0f : wiggle * sinf(PI * t);
+        pts[i] = Vector3Add(Vector3Add(Vector3Add(a, Vector3Scale(d, len * t)), Vector3Scale(side, Jitter() * j1)),
+                            Vector3Scale(up, Jitter() * j1));
+    }
+
+    rlDrawRenderBatchActive();
+    BeginBlendMode(BLEND_ADDITIVE);
+    rlDisableDepthMask();
+    for (i = 0; i < BEAM_SEGMENTS; i++) BeamSegment(pts[i], pts[i + 1], fade);
+    for (k = 0; k < 3; k++) {                           /* short forked branches */
+        Vector3 p = pts[2 + GetRandomValue(0, BEAM_SEGMENTS - 4)];
+        Vector3 fd = Vector3Normalize(Vector3Add(d, Vector3Add(Vector3Scale(side, Jitter() * 1.5f), Vector3Scale(up, Jitter() * 1.5f))));
+        for (j = 0; j < 3; j++) {
+            Vector3 q = Vector3Add(Vector3Add(p, Vector3Scale(fd, 0.3f)), Vector3Scale(side, Jitter() * 0.12f));
+            BeamSegment(p, q, fade * 0.7f);
+            p = q;
+        }
+    }
+    rlDrawRenderBatchActive();
+    rlEnableDepthMask();
+    EndBlendMode();
+}
+
 typedef struct { int index; float dist; } DrawOrder;
 
 static int CompareFar(const void *a, const void *b)
@@ -676,6 +758,10 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
                                  : (Vector3){ cam.position.x, cam.position.y - PLAYER_LIGHT_HEIGHT, cam.position.z };
 
     Render_BeginFrame(&WINGS[g->wing], cam, lightAt, g->time);
+    if (g->beamTime > 0.0f) {
+        float f = g->beamTime / BEAM_TIME;
+        Render_SetFlash(g->beamEnd, (Vector3){ 2.6f * f, 0.15f * f, 0.1f * f }, FLASH_RADIUS);
+    }
     BeginMode3D(cam);
 
     /* opaque: world, chests, door, torches, characters, then glowing bolts and particles */
@@ -700,6 +786,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
         }
     }
     Bolts_Draw(g->bolts);
+    DrawBeam(g);
     for (i = 0; i < MAX_PARTICLES; i++) {
         const Particle *p = &g->particles[i];
         float s = p->size * fminf(1.0f, p->life / (p->maxLife * 0.5f + 0.001f));
@@ -827,11 +914,11 @@ static int FlowTest(Game *g)
     in = none;
     in.swing = true;
     Frame(g, &in, 1.0f / 60.0f, false);
-    Simulate(g, &none, SWORD_COOLDOWN + 0.1f);
-    fails += Check(e->hp == SKELETON_HP - 1, "sword hit (aim assist) damages a skeleton");
+    Simulate(g, &none, WAND_COOLDOWN + 0.1f);
+    fails += Check(e->hp == SKELETON_HP - 1, "red lightning (aim assist) damages a skeleton");
     e->pos = Vector3Add(g->player.pos, (Vector3){ -0.9f, 0.0f, -0.9f });
     Frame(g, &in, 1.0f / 60.0f, false);
-    Simulate(g, &none, SWORD_COOLDOWN + 0.1f);
+    Simulate(g, &none, WAND_COOLDOWN + 0.1f);
     fails += Check(!e->alive && g->enemiesSlain == slain + 1, "second hit kills it");
     g->player.god = false;
 
@@ -882,6 +969,26 @@ static int BalanceTest(Game *g)
     return fails;
 }
 
+/* Red Lightning in action: cast at a skeleton a few steps ahead and capture the beam. */
+static void LightningShot(Game *g)
+{
+    Input in = { 0 };
+    Vector3 fwd;
+    Game_NewGame(g, 0);
+    g->player.god = true;
+    g->bannerCount = 0;
+    fwd = (Vector3){ sinf(g->rig.yaw), 0.0f, cosf(g->rig.yaw) };
+    g->enemyCount = 1;
+    Enemy_Spawn(&g->enemies[0], EN_SKELETON, Vector3Add(g->player.pos, Vector3Add(Vector3Scale(fwd, 6.0f), (Vector3){ 1.2f, 0, 0 })),
+                g->rig.yaw + PI, &WINGS[0]);
+    g->enemies[0].hp = 99;                      /* survives so it is in the picture */
+    Simulate(g, &in, 1.2f);                     /* let the fade-in finish */
+    in.swing = true;
+    Frame(g, &in, 1.0f / 60.0f, true);
+    Screen_Save("shots/lightning.png");
+    g->player.god = false;
+}
+
 /* Wing 5: the gate needs every chest AND the Queen; she summons ghosts at half health. */
 static int QueenTest(Game *g)
 {
@@ -905,7 +1012,7 @@ static int QueenTest(Game *g)
     in.swing = true;
     for (safety = 0; safety < 200 && queen->alive; safety++) {
         Frame(g, &in, 1.0f / 60.0f, false);
-        Simulate(g, &none, SWORD_COOLDOWN);
+        Simulate(g, &none, WAND_COOLDOWN);
         if (queen->alive) {             /* keep the fight in one place */
             g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
             queen->visible = true;
@@ -1031,6 +1138,7 @@ int Game_Autotest(Game *g)
         EnemyShowcase(g);
         if (!Screen_Save("shots/enemies.png")) failures++;
         failures += FlowTest(g);
+        LightningShot(g);
         failures += BalanceTest(g);
         failures += QueenTest(g);
         BossShot(g);

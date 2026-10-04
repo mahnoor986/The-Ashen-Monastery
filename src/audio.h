@@ -4,7 +4,7 @@
 #define AUDIO_H
 
 typedef enum {
-    SND_SWING = 0,   /* sword whoosh */
+    SND_ZAP = 0,     /* red lightning crack (generated in code) */
     SND_HIT,         /* sword hits an enemy */
     SND_HURT,        /* player takes a hit */
     SND_CHEST,       /* chest lid creaks open */

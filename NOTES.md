@@ -124,3 +124,14 @@ Decisions made while building, and things worth knowing.
 - PS1 vertex wobble in `world.vs` (snap to a 320x180 grid) is on; it looked fine in the shots.
 - F2 now toggles the post-process; the FPS counter moved to F6.
 - Pale tones (bone, wraiths) keep some pallor in the grade so they read against the red.
+
+## Task 2 - Red Lightning wand
+- The sword is gone: Kael holds a dark-wood wand with a glowing red tip. Left click casts
+  (cooldown 0.45 s, range 12, 1 damage). Aim assist picks the nearest enemy that can be hurt
+  AND is in line of sight; otherwise the bolt follows the camera/crosshair.
+- The bolt is a ray marched from the wand tip in 0.1 steps: first wall or enemy stops it,
+  fireballs it passes through are destroyed. A Choir Wraith in the dark lets it pass through.
+- Visual: 10 jagged segments re-randomised every frame + 3 forks, additive red glow + white core
+  (`DrawCylinderEx`). A second point light (`flashPos/Color/Radius` in world.fs) flashes red.
+- The crack sound is synthesised in `audio.c` (`MakeCrack`: noise burst + falling whine + thump).
+- `shots/lightning.png` shows a cast. The masher balance test now ends with 5/5 hearts.

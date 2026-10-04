@@ -1,9 +1,9 @@
 
 wing   name                                cells chunks vertices chests enemies torches
-1      The Gatehouse                        1230      6    14184      3       5      24   16.6 ms/frame
-2      The Grand Ballroom                   1564      7    17532      4       9      43   16.9 ms/frame
-3      The Moonlit Library                  1824      7    17700      4      10      37   17.2 ms/frame
-4      The Bone Chapel                      2000      7    24132      5      14      43   16.8 ms/frame
+1      The Gatehouse                        1230      6    14184      3       5      24   17.1 ms/frame
+2      The Grand Ballroom                   1564      7    17532      4       9      43   16.6 ms/frame
+3      The Moonlit Library                  1824      7    17700      4      10      37   16.7 ms/frame
+4      The Bone Chapel                      2000      7    24132      5      14      43   16.6 ms/frame
 5      The Witch Queen's Throne Room        1920      7    22620      5       8      25   16.9 ms/frame
 
 flow test (wing 1, scripted input):
@@ -13,14 +13,14 @@ flow test (wing 1, scripted input):
   [ ok ] exit door opens after the last chest
   [ ok ] door slides into the floor
   [ ok ] walking through the exit leaves the wing
-  [ ok ] sword hit (aim assist) damages a skeleton
+  [ ok ] red lightning (aim assist) damages a skeleton
   [ ok ] second hit kills it
   [ ok ] a skeleton's telegraphed attack can kill you
   [ ok ] Enter rises again at the chest checkpoint with full hearts, chest stays open
   [ ok ] surviving enemies return to their spawn
 
 balance test (wing 1, mashing left click vs 2 skeletons):
-  hearts left: 4 of 5 after 1.6 s
+  hearts left: 5 of 5 after 1.4 s
   [ ok ] both skeletons are beaten
   [ ok ] with at least 3 hearts to spare
 
