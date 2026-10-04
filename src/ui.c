@@ -134,10 +134,10 @@ static void DrawBanner(const Game *g)
     b = &g->banners[0];
     a = fminf(b->time / 0.4f, (b->duration - b->time) / 0.7f);
     a = Clamp01(a);
-    DrawRectangleGradientV(0, 150, SCREEN_W, 60, (Color){ 0, 0, 0, 0 }, Alpha((Color){ 0, 0, 0, 150 }, a));
-    DrawRectangleGradientV(0, 210, SCREEN_W, 60, Alpha((Color){ 0, 0, 0, 150 }, a), (Color){ 0, 0, 0, 0 });
-    UI_TextCentered(true, b->title, SCREEN_W * 0.5f, 160, 56, Alpha(b->color, a));
-    if (b->sub[0]) UI_TextCentered(false, b->sub, SCREEN_W * 0.5f, 222, 28, Alpha(COL_BONE, a));
+    DrawRectangleGradientV(0, 200, SCREEN_W, 60, (Color){ 0, 0, 0, 0 }, Alpha((Color){ 0, 0, 0, 150 }, a));
+    DrawRectangleGradientV(0, 260, SCREEN_W, 60, Alpha((Color){ 0, 0, 0, 150 }, a), (Color){ 0, 0, 0, 0 });
+    UI_TextCentered(true, b->title, SCREEN_W * 0.5f, 210, 56, Alpha(b->color, a));
+    if (b->sub[0]) UI_TextCentered(false, b->sub, SCREEN_W * 0.5f, 272, 28, Alpha(COL_BONE, a));
 }
 
 /* ============================================================ HUD */

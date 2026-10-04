@@ -1,0 +1,31 @@
+
+wing   name                                cells chunks vertices chests enemies torches
+1      The Gatehouse                        1230      6    14184      3       5      24   16.7 ms/frame
+2      The Grand Ballroom                   1564      7    17532      4       9      43   16.7 ms/frame
+3      The Moonlit Library                  1824      7    17700      4      10      37   17.4 ms/frame
+4      The Bone Chapel                      2000      7    24132      5      14      43   16.7 ms/frame
+5      The Witch Queen's Throne Room        1920      7    22620      5       8      25   16.8 ms/frame
+
+flow test (wing 1, scripted input):
+  [ ok ] hold E opens chest 1 (Silver Chalice)
+  [ ok ] hold E opens chest 2 (Raven Brooch)
+  [ ok ] hold E opens chest 3 (Iron Rosary)
+  [ ok ] exit door opens after the last chest
+  [ ok ] door slides into the floor
+  [ ok ] walking through the exit leaves the wing
+  [ ok ] sword hit (aim assist) damages a skeleton
+  [ ok ] second hit kills it
+  [ ok ] a skeleton's telegraphed attack can kill you
+  [ ok ] Enter rises again at the chest checkpoint with full hearts, chest stays open
+  [ ok ] surviving enemies return to their spawn
+
+queen test (wing 5):
+  [ ok ] the Witch Queen is in the throne room
+  [ ok ] gate stays shut while the Queen lives
+  [ ok ] the boss bar appears once she is alerted
+  [ ok ] at half health she summons two ghosts
+  [ ok ] the Queen can be destroyed
+  [ ok ] the manor gate opens
+  [ ok ] escaping through the gate shows the victory screen
+
+autotest passed (0 failures)

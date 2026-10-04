@@ -80,3 +80,20 @@ Decisions made while building, and things worth knowing.
   footsteps `footstep00-09`, scare `scaryhighpitchedghost.wav`, moan `qubodup-GhostMoan01-05.wav`,
   bolt `knifeSlice*` (pitched up), bolt shatter `impactGlass_light_*`, enemy death
   `impactWood_heavy_*`, dash `cloth1-3`, menu `metalClick`, ambience `dungeon_ambient_1.ogg`.
+
+## Phase 5 decisions
+- Wings 2-5 were laid out with a throwaway Python script (rooms carved from stone, walls take
+  each room's material, torches spaced further apart in later wings: every 3-4 cells in wing 2,
+  every 8 in wing 5). The `.txt` files are the source of truth and can be edited by hand.
+  - Wing 2 Ballroom: foyer -> big pillared ballroom (wood floor, carpet cross) -> parlor,
+    dining hall, gallery with the exit. Wood-panel walls.
+  - Wing 3 Library: bookshelf walls, bookshelf islands in the stacks and archive (cover from bolts).
+  - Wing 4 Bone Chapel: nave with pillars, ossuary, crypt, apse, charnel house; bone piles.
+  - Wing 5 Throne Room: one huge obsidian-walled hall with pillars, four side chambers, the
+    Queen waits on the carpet near the gate.
+- The Queen gets a faint purple self-glow so she is readable in the near-black throne room.
+- `--autotest` also fights the Queen (summon at half health, gate shut until she dies, escape
+  -> victory) and saves `shots/boss.png`. It prints ms/frame per wing (about 16.7 = 60 fps,
+  vsync-limited, on this Intel HD 510).
+- Save: `save.txt` holds the highest wing reached (1-5). The menu shows "Continue (Wing N)".
+  New Game always starts at wing 1 (the save keeps the highest wing reached).

@@ -296,7 +296,13 @@ void Enemy_Draw(const Enemy *e, const World *w)
     switch (e->type) {
     case EN_SKELETON: Character_DrawSkeleton(&pose); break;
     case EN_WITCH:    Character_DrawWitch(&pose); break;
-    case EN_QUEEN:    Character_DrawQueen(&pose); break;
+    case EN_QUEEN: {
+        /* the Queen glows faintly purple so she is always readable in her dark throne room */
+        Vector3 l = World_LightAt(w, (Vector3){ e->pos.x, 1.0f, e->pos.z });
+        Render_UseEntityLight((Vector3){ fmaxf(l.x, 0.45f), fmaxf(l.y, 0.30f), fmaxf(l.z, 0.55f) });
+        Character_DrawQueen(&pose);
+        break;
+    }
     case EN_GHOST:
         pose.pos.y = 0.35f + 0.1f * sinf(e->time * 2.0f + e->seed);      /* floats 0.25 - 0.45 above the floor */
         pose.alpha = e->visible ? GHOST_ALPHA : GHOST_FAINT_ALPHA;

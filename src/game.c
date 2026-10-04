@@ -849,6 +849,70 @@ static int FlowTest(Game *g)
     return fails;
 }
 
+/* Wing 5: the gate needs every chest AND the Queen; she summons ghosts at half health. */
+static int QueenTest(Game *g)
+{
+    Input none = { 0 }, in;
+    Enemy *queen = NULL;
+    int fails = 0, i, before, safety;
+
+    printf("\nqueen test (wing 5):\n");
+    Game_NewGame(g, WING_COUNT - 1);
+    g->player.god = true;
+    for (i = 0; i < g->enemyCount; i++) if (g->enemies[i].type == EN_QUEEN) queen = &g->enemies[i];
+    fails += Check(queen != NULL, "the Witch Queen is in the throne room");
+    if (!queen) return fails;
+    for (i = 0; i < g->world.chestCount; i++) OpenChest(g, i);
+    fails += Check(!g->world.exitOpen, "gate stays shut while the Queen lives");
+
+    /* stand next to her and fight */
+    before = g->enemyCount;
+    g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
+    in = none;
+    in.swing = true;
+    for (safety = 0; safety < 200 && queen->alive; safety++) {
+        Frame(g, &in, 1.0f / 60.0f, false);
+        Simulate(g, &none, SWORD_COOLDOWN);
+        if (queen->alive) {             /* keep the fight in one place */
+            g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
+            queen->visible = true;
+        }
+        if (safety == 0) fails += Check(g->queenAlerted, "the boss bar appears once she is alerted");
+    }
+    fails += Check(g->enemyCount == before + 2, "at half health she summons two ghosts");
+    fails += Check(!queen->alive && g->queenDead, "the Queen can be destroyed");
+    fails += Check(g->world.exitOpen, "the manor gate opens");
+    StandNextTo(g, g->world.exits[0]);
+    in = none;
+    in.move.y = 1.0f;
+    for (i = 0; i < 400 && g->state == STATE_PLAYING; i++) Frame(g, &in, 1.0f / 60.0f, false);
+    fails += Check(g->state == STATE_VICTORY, "escaping through the gate shows the victory screen");
+    g->player.god = false;
+    return fails;
+}
+
+/* The Queen alerted right in front of the player, to see her and the boss bar. */
+static void BossShot(Game *g)
+{
+    Input none = { 0 };
+    int i, f;
+    Game_NewGame(g, WING_COUNT - 1);
+    g->player.god = true;
+    for (i = 0; i < g->enemyCount; i++) {
+        Enemy *e = &g->enemies[i];
+        if (e->type != EN_QUEEN) { e->alive = false; continue; }
+        g->player.pos = Vector3Add(e->pos, (Vector3){ 0.0f, 0.0f, 5.0f });
+        g->player.yaw = g->rig.yaw = PI;
+        e->alerted = true;
+        e->hp = e->maxHp * 2 / 3;
+        e->ringTimer = 100.0f;
+    }
+    g->bannerCount = 0;
+    for (f = 0; f < 60; f++) Frame(g, &none, 1.0f / 60.0f, f == 59);
+    Screen_Save("shots/boss.png");
+    g->player.god = false;
+}
+
 /* Every enemy type standing in front of the player (camera behind the player). */
 static void EnemyShowcase(Game *g)
 {
@@ -891,6 +955,7 @@ int Game_Autotest(Game *g)
     const float dt = 1.0f / 60.0f;
     Input none = { 0 };
     int failures = 0, i, f;
+    double t0, frameMs;
 
     MakeDirectory("shots");
 
@@ -902,7 +967,8 @@ int Game_Autotest(Game *g)
     printf("\n%-6s %-34s %6s %6s %8s %6s %7s %7s\n", "wing", "name", "cells", "chunks", "vertices", "chests", "enemies", "torches");
     for (i = 0; i < WING_COUNT; i++) {
         if (!FileExists(WINGS[i].file)) {
-            printf("%-6d (not built yet: %s)\n", i + 1, WINGS[i].file);
+            printf("%-6d MISSING %s\n", i + 1, WINGS[i].file);
+            failures++;
             continue;
         }
         Game_NewGame(g, i);
@@ -913,11 +979,13 @@ int Game_Autotest(Game *g)
             continue;
         }
         g->player.god = true;
+        t0 = GetTime();
         for (f = 0; f < AUTOTEST_FRAMES; f++) Frame(g, &none, dt, true);
+        frameMs = (GetTime() - t0) * 1000.0 / AUTOTEST_FRAMES;
         if (!Screen_Save(TextFormat("shots/wing%d.png", i + 1))) failures++;
-        printf("%-6d %-34s %6d %6d %8d %6d %7d %7d\n", i + 1, g->world.name, g->world.w * g->world.h,
+        printf("%-6d %-34s %6d %6d %8d %6d %7d %7d   %.1f ms/frame\n", i + 1, g->world.name, g->world.w * g->world.h,
                g->world.chunkCount, g->world.vertexCount, g->world.chestCount, g->world.spawnCount,
-               g->world.torchCount);
+               g->world.torchCount, frameMs);
         g->player.god = false;
     }
 
@@ -927,6 +995,8 @@ int Game_Autotest(Game *g)
         EnemyShowcase(g);
         if (!Screen_Save("shots/enemies.png")) failures++;
         failures += FlowTest(g);
+        failures += QueenTest(g);
+        BossShot(g);
     } else {
         failures++;
     }

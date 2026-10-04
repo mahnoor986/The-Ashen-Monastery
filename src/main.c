@@ -23,7 +23,10 @@ int main(int argc, char **argv)
     }
     if (startWing < 0 || startWing >= WING_COUNT) startWing = 0;
 
-    if (autotest) SetTraceLogLevel(LOG_WARNING);    /* keep the summary readable */
+    if (autotest) {
+        SetTraceLogLevel(LOG_WARNING);              /* keep the summary readable */
+        setvbuf(stdout, NULL, _IONBF, 0);           /* show progress immediately */
+    }
     Screen_Init(WINDOW_TITLE);
     ChangeDirectory(GetApplicationDirectory());     /* relative asset paths work when double-clicked */
     SetExitKey(KEY_NULL);                           /* Esc pauses instead of quitting */
