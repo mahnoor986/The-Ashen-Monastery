@@ -1,10 +1,10 @@
 
 wing   name                                cells chunks vertices chests enemies torches
-1      The Ash Gate                         1230      6    14184      3       5      24   17.2 ms/frame
-2      The Hall of Prayer                   1564      7    17532      4       9      43   17.1 ms/frame
-3      The Scriptorium                      1824      7    17700      4      10      37   16.7 ms/frame
-4      The Ossuary                          2000      7    24132      5      14      43   16.9 ms/frame
-5      The Bell Tower                       1920      7    22620      5       8      25   16.9 ms/frame
+1      The Ash Gate                         1230      6    14184      3       5      24   16.6 ms/frame
+2      The Hall of Prayer                   1564      7    17532      4       9      43   16.9 ms/frame
+3      The Scriptorium                      1824      7    17700      4      10      37   17.2 ms/frame
+4      The Ossuary                          2000      7    24132      5      14      43   17.1 ms/frame
+5      The Bell Tower                       1920      7    22620      5       8      25   16.8 ms/frame
 
 flow test (wing 1, scripted input):
   [ ok ] hold E opens chest 1 (Seal of Cinders)

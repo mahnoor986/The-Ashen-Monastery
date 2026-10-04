@@ -1,6 +1,6 @@
-# Blackthorn Manor - Makefile for w64devkit + raylib 6.0 (Windows)
+# The Ashen Monastery - Makefile for w64devkit + raylib 6.0 (Windows)
 #
-#   make            debug build -> BlackthornManor.exe
+#   make            debug build -> AshenMonastery.exe
 #   make run        build and run
 #   make autotest   build and run the screenshot self-test (writes shots/*.png)
 #   make release    optimized build, no console window
@@ -14,7 +14,7 @@
 #   make RAYLIB_PATH="C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64"
 
 CC          := gcc
-TARGET      := BlackthornManor.exe
+TARGET      := AshenMonastery.exe
 
 RAYLIB_PATH ?= C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-w64
 

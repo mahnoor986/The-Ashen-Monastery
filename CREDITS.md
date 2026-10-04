@@ -1,9 +1,11 @@
 # Credits
 
-Blackthorn Manor, a student project in C99 + raylib.
+The Ashen Monastery, a student project in C99 + raylib.
 
-**All textures and 3D models are generated in code** (`src/textures.c`, `src/character.c`,
-`src/world.c`); the game uses no image files.
+**Made in code** (no external files): all 3D models (Kael, Ashen Monks, Choir Wraiths, Ember
+Priests, the Red Abbot, Master Oren and the apprentices), particles, falling ash and embers, the red
+lightning, the generated block textures (bookshelf, carpet, bone, reliquary, ember cloth, ...), and
+the **lightning crack and bell sounds** (synthesised in `src/audio.c`).
 
 ## Third-party assets
 
@@ -11,10 +13,10 @@ Blackthorn Manor, a student project in C99 + raylib.
 |-------|----------|--------|--------|---------|
 | Pirata One | titles | Rodrigo Fuenzalida, Nicolas Massi | Google Fonts | SIL Open Font License 1.1 |
 | Crimson Text | body text | The Crimson Text Project Authors (Sebastian Kosch) | Google Fonts | SIL Open Font License 1.1 |
-| RPG Audio: `drawKnife*`, `creak*`, `handleCoins*`, `doorOpen_*`, `footstep0*`, `knifeSlice*`, `cloth*`, `metalClick` | sword swing, chest, treasure, door, footsteps, hex bolt, dash, menu | Kenney | kenney.nl | CC0 |
-| Impact Sounds: `impactPlate_medium_*`, `impactPunch_heavy_*`, `impactGlass_light_*`, `impactWood_heavy_*` | sword hit, player hurt, bolt shatter, enemy death | Kenney | kenney.nl | CC0 |
-| Ghost Moans (`qubodup-GhostMoan01-05`) | ghost moans | qubodup | opengameart.org | CC0 |
-| Scary High-pitched Ghost (`scaryhighpitchedghost`) | ghost scare | Fupi | opengameart.org | CC0 |
+| RPG Audio: `creak*`, `handleCoins*`, `doorOpen_*`, `footstep0*`, `knifeSlice*`, `cloth*`, `metalClick` | reliquary, seal found, door, footsteps, fireball whoosh, dash, menu | Kenney | kenney.nl | CC0 |
+| Impact Sounds: `impactPlate_medium_*`, `impactPunch_heavy_*`, `impactGlass_light_*`, `impactWood_heavy_*` | lightning hit, player hurt, fireball shatter, enemy death | Kenney | kenney.nl | CC0 |
+| Ghost Moans (`qubodup-GhostMoan01-05`) | Choir Wraiths singing | qubodup | opengameart.org | CC0 |
+| Scary High-pitched Ghost (`scaryhighpitchedghost`) | wraith scare | Fupi | opengameart.org | CC0 |
 | Loopable Dungeon Ambience (`dungeon_ambient_1.ogg`) | ambience loop | JaggedStone | opengameart.org | CC0 |
 | Castle Brick 07 (`castle_brick_07`) -> `assets/textures/wall.png` | stone walls | Poly Haven | polyhaven.com | CC0 |
 | Dark Wooden Planks (`dark_wooden_planks`) -> `wood_wall.png` | wood-panel walls | Poly Haven | polyhaven.com | CC0 |

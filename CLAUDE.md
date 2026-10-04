@@ -1,5 +1,11 @@
 # BLACKTHORN MANOR — Build Spec for Claude Code
 
+> **Update:** the game is now **THE ASHEN MONASTERY** ("Climb. Break the bells. Bring them home.").
+> Its story, names, look (PS1 red/black post-process), Red Lightning wand, enemies and the Sanctum
+> ending are specified in **`UPGRADE.md`**, which overrides this file wherever they conflict.
+> Everything below still describes the underlying systems (build, maps, chests, checkpoints, autotest).
+> The original Blackthorn Manor version is tagged `submittable` in git.
+
 You are rebuilding this project (currently a 2D top-down dungeon crawler called "Gothic Dungeon")
 into **Blackthorn Manor**: a **3D, blocky (voxel-style), third-person gothic horror game** in **C99 + raylib 6.0**.
 This file is the single source of truth. Follow it phase by phase. Do not ask the user questions unless

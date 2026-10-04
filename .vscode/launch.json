@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Blackthorn Manor",
+            "name": "Debug The Ashen Monastery",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/BlackthornManor.exe",
+            "program": "${workspaceFolder}/AshenMonastery.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

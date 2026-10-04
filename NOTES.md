@@ -184,3 +184,11 @@ Decisions made while building, and things worth knowing.
   stats and a short credits list ("Created by: ___" for the student to fill in).
 - Autotest: `SanctumTest` (friend line, Oren prompt, dialogue, final screen) + `shots/sanctum.png`,
   `dialogue.png`, `victory.png`.
+
+## Task 7 - Wrap up
+- Executable is now `AshenMonastery.exe` (Makefile, `.vscode/launch.json`, `build.bat`).
+- README, CREDITS and the top of CLAUDE.md describe The Ashen Monastery.
+- Nothing from the cut list had to be cut: vertex wobble, embers, friend lines, real textures and
+  bell tolls are all in.
+- Kael still uses the knight's body (helmet + tabard) with the wand; the spec only asked to swap
+  the sword for the wand.
