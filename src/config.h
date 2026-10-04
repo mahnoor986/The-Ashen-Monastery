@@ -28,6 +28,8 @@
 #define COL_NEARBLACK   (Color){  13,   3,   3, 255 }   /* background / fog (matches FOG_COLOR) */
 
 /* ----------------------------------------------------------------- fonts */
+#define TEXTURE_DIR     "assets/textures"   /* optional Poly Haven photo textures */
+#define TEXTURE_DARKEN  (-35)               /* brightness change applied to them (-255..255) */
 #define FONT_DIR        "assets/fonts"            /* searched recursively for the files below */
 #define FONT_TITLE_NAME "PirataOne-Regular.ttf"   /* titles (falls back to raylib's font) */
 #define FONT_BODY_NAME  "CrimsonText-Regular.ttf" /* body text (falls back to raylib's font) */

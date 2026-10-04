@@ -135,3 +135,12 @@ Decisions made while building, and things worth knowing.
   (`DrawCylinderEx`). A second point light (`flashPos/Color/Radius` in world.fs) flashes red.
 - The crack sound is synthesised in `audio.c` (`MakeCrack`: noise burst + falling whine + thump).
 - `shots/lightning.png` shows a cast. The masher balance test now ends with 5/5 hearts.
+
+## Task 3 - Real textures
+- Downloaded six 1k PNG diffuse maps from the Poly Haven API into `assets/textures/` (CC0, see
+  CREDITS.md). Each is optional: missing/unloadable -> the generated tile stays.
+- Atlas: generated tiles are still painted at 16 px, the atlas is nearest-scaled to 64 px slots
+  (`ATLAS_TILE`), then photos are pasted in. UVs use `ATLAS_TILE`, half-texel inset kept.
+- Photos are shrunk with bicubic `ImageResize` (nearest from 1024 -> 64 px turns into noise);
+  the GPU still samples with point filtering, so the result keeps the PS1 look. Darkened by 35.
+- Carpet is now deep crimson; bookshelf, carpet, bone, chest, plank floor stay generated.

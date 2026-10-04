@@ -2,6 +2,8 @@
  * Each tile is painted pixel by pixel with deterministic pseudo-random noise, so the
  * textures look exactly the same on every run. Filtering is POINT for a crisp blocky look. */
 #include <math.h>
+#include <stdio.h>
+#include "config.h"
 #include "textures.h"
 
 static Texture2D atlas;   /* module-private GPU resource */
@@ -159,7 +161,7 @@ static void PaintStoneFloor(Image *img)
 
 static void PaintCarpet(Image *img)
 {
-    const Color red = { 116, 14, 22, 255 }, gold = { 196, 146, 62, 255 };
+    const Color red = { 92, 6, 14, 255 }, gold = { 196, 146, 62, 255 };       /* deep crimson */
     int x, y;
     for (y = 0; y < 16; y++) {
         for (x = 0; x < 16; x++) {
@@ -260,9 +262,37 @@ static void PaintPlain(Image *img, int tile, Color c, float noise)
 
 /* ------------------------------------------------------------ API */
 
+/* Real textures (optional): file in assets/textures/ -> atlas slot. */
+static const struct { const char *file; int tile; } PHOTO[] = {
+    { "wall.png",      TILE_STONE_WALL },
+    { "wood_wall.png", TILE_WOOD_WALL },
+    { "floor.png",     TILE_STONE_FLOOR },
+    { "pillar.png",    TILE_OBSIDIAN },
+    { "door.png",      TILE_IRON_DOOR },
+    { "ceiling.png",   TILE_CEILING },
+};
+
+/* Shrink a photo texture to one atlas slot, darken it, and paste it in. */
+static void PastePhoto(Image *atlasImg, const char *file, int tile)
+{
+    const char *path = TextFormat("%s/%s", TEXTURE_DIR, file);
+    Image img;
+    if (!FileExists(path)) return;
+    img = LoadImage(path);
+    if (!IsImageValid(img)) { printf("warning: could not load %s (keeping the generated texture)\n", path); return; }
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    ImageResize(&img, ATLAS_TILE, ATLAS_TILE);
+    ImageColorBrightness(&img, TEXTURE_DARKEN);
+    ImageDraw(atlasImg, img, (Rectangle){ 0, 0, ATLAS_TILE, ATLAS_TILE },
+              (Rectangle){ (float)((tile % ATLAS_TILES) * ATLAS_TILE), (float)((tile / ATLAS_TILES) * ATLAS_TILE),
+                           ATLAS_TILE, ATLAS_TILE }, WHITE);
+    UnloadImage(img);
+}
+
 void Textures_Init(void)
 {
     Image img = GenImageColor(TILE_PIXELS * ATLAS_TILES, TILE_PIXELS * ATLAS_TILES, MAGENTA);
+    unsigned int i;
     PaintStoneWall(&img);
     PaintWoodWall(&img);
     PaintObsidian(&img);
@@ -277,6 +307,10 @@ void Textures_Init(void)
     PaintPlain(&img, TILE_WHITE, WHITE, 0.0f);
     PaintPlain(&img, TILE_FLAME, (Color){ 255, 196, 90, 255 }, 0.12f);
     PaintPlain(&img, TILE_IRON, (Color){ 44, 44, 50, 255 }, 0.2f);
+
+    /* scale the 16 px tiles up to 64 px slots (nearest keeps them crisp), then add photo textures */
+    ImageResizeNN(&img, ATLAS_TILE * ATLAS_TILES, ATLAS_TILE * ATLAS_TILES);
+    for (i = 0; i < sizeof(PHOTO) / sizeof(PHOTO[0]); i++) PastePhoto(&img, PHOTO[i].file, PHOTO[i].tile);
 
     atlas = LoadTextureFromImage(img);
     SetTextureFilter(atlas, TEXTURE_FILTER_POINT);
@@ -295,11 +329,11 @@ Texture2D Textures_Atlas(void)
 
 void Textures_TileUV(int tile, float *u0, float *v0, float *u1, float *v1)
 {
-    const float size = (float)(TILE_PIXELS * ATLAS_TILES);
-    float px = (float)((tile % ATLAS_TILES) * TILE_PIXELS);
-    float py = (float)((tile / ATLAS_TILES) * TILE_PIXELS);
+    const float size = (float)(ATLAS_TILE * ATLAS_TILES);
+    float px = (float)((tile % ATLAS_TILES) * ATLAS_TILE);
+    float py = (float)((tile / ATLAS_TILES) * ATLAS_TILE);
     *u0 = (px + 0.5f) / size;
     *v0 = (py + 0.5f) / size;
-    *u1 = (px + TILE_PIXELS - 0.5f) / size;
-    *v1 = (py + TILE_PIXELS - 0.5f) / size;
+    *u1 = (px + ATLAS_TILE - 0.5f) / size;
+    *v1 = (py + ATLAS_TILE - 0.5f) / size;
 }

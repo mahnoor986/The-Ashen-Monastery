@@ -16,6 +16,12 @@ Blackthorn Manor, a student project in C99 + raylib.
 | Ghost Moans (`qubodup-GhostMoan01-05`) | ghost moans | qubodup | opengameart.org | CC0 |
 | Scary High-pitched Ghost (`scaryhighpitchedghost`) | ghost scare | Fupi | opengameart.org | CC0 |
 | Loopable Dungeon Ambience (`dungeon_ambient_1.ogg`) | ambience loop | JaggedStone | opengameart.org | CC0 |
+| Castle Brick 07 (`castle_brick_07`) -> `assets/textures/wall.png` | stone walls | Poly Haven | polyhaven.com | CC0 |
+| Dark Wooden Planks (`dark_wooden_planks`) -> `wood_wall.png` | wood-panel walls | Poly Haven | polyhaven.com | CC0 |
+| Cobblestone Floor 001 (`cobblestone_floor_001`) -> `floor.png` | stone floors | Poly Haven | polyhaven.com | CC0 |
+| Rock Wall 07 (`rock_wall_07`) -> `pillar.png` | pillars | Poly Haven | polyhaven.com | CC0 |
+| Rusty Metal 02 (`rusty_metal_02`) -> `door.png` | iron doors | Poly Haven | polyhaven.com | CC0 |
+| Dark Planks (`dark_planks`) -> `ceiling.png` | ceilings | Poly Haven | polyhaven.com | CC0 |
 
 ## Libraries
 

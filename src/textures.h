@@ -1,5 +1,6 @@
 /* textures.h - the block texture atlas, generated in code (no image files).
- * Every block texture is a 16x16 pixel tile packed into one small atlas texture. */
+ * Every block texture is a tile packed into one small atlas texture. Where a real photo texture
+ * exists in assets/textures/ (Poly Haven, CC0) it replaces the generated tile. */
 #ifndef TEXTURES_H
 #define TEXTURES_H
 
@@ -23,8 +24,9 @@ typedef enum {
     TILE_COUNT
 } TileId;
 
-#define TILE_PIXELS   16   /* each tile is 16x16 pixels */
-#define ATLAS_TILES   4    /* atlas is 4x4 tiles = 64x64 pixels */
+#define TILE_PIXELS   16   /* generated tiles are painted at 16x16 pixels ... */
+#define ATLAS_TILE    64   /* ... then scaled up (nearest) to 64x64 slots in the atlas */
+#define ATLAS_TILES   4    /* atlas is 4x4 slots = 256x256 pixels */
 
 void      Textures_Init(void);
 void      Textures_Shutdown(void);
