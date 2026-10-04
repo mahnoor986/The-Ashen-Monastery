@@ -16,8 +16,9 @@ typedef enum {
     STATE_PLAYING,
     STATE_PAUSED,
     STATE_INVENTORY,
-    STATE_DEAD,           /* "YOU HAVE FALLEN" */
-    STATE_VICTORY,        /* "YOU ESCAPED BLACKTHORN MANOR" */
+    STATE_DEAD,           /* "THE FIRE TAKES YOU" */
+    STATE_VICTORY,        /* "THE BELLS ARE SILENT" */
+    STATE_INTRO,          /* the story, line by line, before wing 1 */
 } GameState;
 
 typedef struct {
@@ -83,6 +84,7 @@ typedef struct Game {
     float     time;                    /* seconds since start */
     float     wingTime;                /* seconds since entering the current wing */
     int       menuSel, pauseSel;
+    float     introTime;               /* seconds into the intro text */
     bool      mouseLook;               /* mouse captured for camera control */
     int       mouseSkip;               /* frames to ignore mouse movement after capturing */
     bool      autotest;
@@ -93,6 +95,8 @@ typedef struct Game {
 
 extern const char *const TREASURES[WING_COUNT][MAX_CHESTS];
 extern const char *const WING_NAMES[WING_COUNT];
+#define INTRO_LINE_COUNT 4
+extern const char *const INTRO_LINES[INTRO_LINE_COUNT];
 
 void Game_Init(Game *g, int startWing, bool directStart, bool autotest);
 void Game_NewGame(Game *g, int wing);       /* start a run at this wing */
@@ -102,7 +106,7 @@ void Game_Draw(Game *g);                    /* draws into the virtual screen */
 int  Game_Autotest(Game *g);                /* returns the process exit code */
 void Game_Shutdown(Game *g);
 
-const char *Game_WingTitle(int wing);       /* "Wing II" */
+const char *Game_WingTitle(int wing);       /* "THE SECOND BELL" */
 /* Main menu entries: fills labels + actions (0 new game, 1 continue, 2 quit), returns the count. */
 int Game_MenuOptions(const Game *g, int actions[4], const char *labels[4]);
 

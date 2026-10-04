@@ -6,7 +6,7 @@
 /* ---------------------------------------------------------------- window */
 #define SCREEN_W        1280            /* virtual screen width (the window is scaled to fit) */
 #define SCREEN_H        720             /* virtual screen height */
-#define WINDOW_TITLE    "Blackthorn Manor"
+#define WINDOW_TITLE    "The Ashen Monastery"
 #define TARGET_FPS      60
 #define MAX_DT          0.05f           /* frame dt is clamped to this (avoids huge steps after a stall) */
 #define AUTOTEST_FRAMES 90              /* frames simulated per wing in --autotest */
@@ -165,6 +165,7 @@
 #define CHEST_FACE_DEG      80.0f       /* how directly you must face a chest */
 #define CONTROLS_HINT_TIME  20.0f       /* seconds the controls hint shows in wing 1 */
 #define MAX_PARTICLES       256
+#define INTRO_LINE_TIME     4.2f        /* seconds each intro line stays up */
 
 /* ------------------------------------------------------------ atmosphere */
 #define ASH_COUNT           300         /* grey ash flakes drifting around the camera */
@@ -188,17 +189,17 @@
 
 /* ------------------------------------------------------------ wing names */
 /* For the inventory (the in-game title comes from the first line of each wing file). */
-#define WING_NAME_TABLE { "The Gatehouse", "The Grand Ballroom", "The Moonlit Library", \
-                          "The Bone Chapel", "The Witch Queen's Throne Room" }
+#define WING_NAME_TABLE { "The Ash Gate", "The Hall of Prayer", "The Scriptorium", \
+                          "The Ossuary", "The Bell Tower" }
 
-/* ------------------------------------------------------------- treasures */
-/* Shown in the HUD list and the "You found ..." banner, in map order (top row first). */
+/* ------------------------------------------------------------ ward seals */
+/* Ward Seals: shown in the HUD list and the "Ward Seal found" banner, in map order (top row first). */
 #define TREASURE_TABLE {                                                                             \
-    { "Silver Chalice", "Raven Brooch", "Iron Rosary" },                                             \
-    { "Cursed Locket", "Bloodstone Ring", "Masquerade Mask", "Golden Candelabrum" },                 \
-    { "Moonlit Grimoire", "Astrolabe of Bone", "Quill of the Damned", "Hourglass of Ash" },          \
-    { "Saint's Reliquary", "Skull Chalice", "Ossuary Key", "Black Censer", "Weeping Icon" },         \
-    { "Thorned Crown", "Witch Queen's Scepter", "Obsidian Heart", "Veil of Shadows", "Blackthorn Seal" }, \
+    { "Seal of Cinders", "Seal of the Iron Key", "Seal of the Pilgrim" },                            \
+    { "Seal of Hymns", "Seal of the Kneeling Saint", "Seal of Candlewax", "Seal of Silence" },        \
+    { "Seal of Ink", "Seal of the Burned Page", "Seal of the Quill", "Seal of Forgotten Names" },     \
+    { "Seal of Bone", "Seal of the Nameless", "Seal of Marrow", "Seal of the Last Rite", "Seal of Dust" }, \
+    { "Seal of Embers", "Seal of the Rope", "Seal of the Toll", "Seal of the Abbot's Ring", "Seal of the Red Flame" }, \
 }
 
 /* ----------------------------------------------------------------- wings */

@@ -149,7 +149,7 @@ static void DrawTreasureList(const Game *g)
     int i;
     DrawRectangleRounded((Rectangle){ x - 16, y - 8, 336, 52.0f + g->world.chestCount * 30.0f }, 0.08f, 6,
                          (Color){ 0, 0, 0, 120 });
-    UI_Text(true, TextFormat("Treasures %d/%d", g->chestsOpened, g->world.chestCount), x, y, 34, COL_GOLD);
+    UI_Text(true, TextFormat("Ward Seals %d/%d", g->chestsOpened, g->world.chestCount), x, y, 34, COL_GOLD);
     for (i = 0; i < g->world.chestCount; i++) {
         float ly = y + 44 + i * 30.0f;
         if (g->chestOpened[i]) {
@@ -169,7 +169,7 @@ static void DrawChestPrompt(const Game *g)
     p = Clamp01(g->useHold / CHEST_HOLD_TIME);
     DrawRing(c, 26, 36, 0, 360, 48, (Color){ 0, 0, 0, 150 });
     if (p > 0.0f) DrawRing(c, 27, 35, -90.0f, -90.0f + 360.0f * p, 48, COL_GOLD);
-    UI_TextCentered(false, p > 0.0f ? "Opening..." : "[E] Hold to open chest", c.x, c.y + 48, 30, COL_BONE);
+    UI_TextCentered(false, p > 0.0f ? "Opening..." : "[E] Hold to open reliquary", c.x, c.y + 48, 30, COL_BONE);
 }
 
 static void DrawBossBar(const Game *g)
@@ -246,10 +246,10 @@ Rectangle UI_PauseItemRect(int index, int count)
 static void DrawMenuItem(Rectangle r, const char *label, bool selected)
 {
     if (selected) {
-        DrawRectangleRounded(r, 0.3f, 6, (Color){ 90, 12, 20, 170 });
-        DrawRectangleLinesEx(r, 2, Alpha(COL_GOLD, 0.7f));
+        DrawRectangleRounded(r, 0.3f, 6, (Color){ 110, 8, 14, 190 });
+        DrawRectangleLinesEx(r, 2, (Color){ 220, 40, 40, 200 });
     }
-    UI_TextCentered(false, label, r.x + r.width * 0.5f, r.y + 8, 34, selected ? COL_GOLD : COL_BONE);
+    UI_TextCentered(false, label, r.x + r.width * 0.5f, r.y + 8, 34, selected ? (Color){ 255, 214, 200, 255 } : (Color){ 180, 60, 60, 255 });
 }
 
 void UI_DrawMenu(const Game *g)
@@ -257,11 +257,11 @@ void UI_DrawMenu(const Game *g)
     int actions[4], count, i;
     const char *labels[4];
 
-    DrawTexturePro(vignette, (Rectangle){ 0, 0, (float)vignette.width, (float)vignette.height },
-                   (Rectangle){ 0, 0, SCREEN_W, SCREEN_H }, (Vector2){ 0 }, 0.0f, WHITE);
-    DrawRectangleGradientV(0, 80, SCREEN_W, 220, (Color){ 0, 0, 0, 0 }, (Color){ 0, 0, 0, 120 });
-    UI_TextCentered(true, "BLACKTHORN MANOR", SCREEN_W * 0.5f, 110, 120, COL_BLOOD);
-    UI_TextCentered(false, "Collect the treasures. Survive the night.", SCREEN_W * 0.5f, 250, 34, COL_BONE);
+    /* red and black: a blood-red wash fading to black behind the title */
+    DrawRectangleGradientV(0, 0, SCREEN_W, SCREEN_H / 2, (Color){ 60, 0, 4, 150 }, (Color){ 0, 0, 0, 90 });
+    DrawRectangleGradientV(0, SCREEN_H / 2, SCREEN_W, SCREEN_H / 2, (Color){ 0, 0, 0, 90 }, (Color){ 0, 0, 0, 220 });
+    UI_TextCentered(true, "THE ASHEN MONASTERY", SCREEN_W * 0.5f, 110, 112, (Color){ 200, 20, 28, 255 });
+    UI_TextCentered(false, "Climb. Break the bells. Bring them home.", SCREEN_W * 0.5f, 250, 34, (Color){ 230, 196, 186, 255 });
 
     count = Game_MenuOptions(g, actions, labels);
     for (i = 0; i < count; i++) DrawMenuItem(UI_MenuItemRect(i, count), labels[i], i == g->menuSel);
@@ -284,7 +284,7 @@ void UI_DrawInventory(const Game *g)
 {
     int w, i, total = 0, found = 0;
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 6, 4, 8, 235 });
-    UI_TextCentered(true, "Treasures of Blackthorn Manor", SCREEN_W * 0.5f, 26, 64, COL_GOLD);
+    UI_TextCentered(true, "Ward Seals of the Ashen Monastery", SCREEN_W * 0.5f, 26, 64, COL_GOLD);
 
     for (w = 0; w < WING_COUNT; w++) {
         float y = 118.0f + w * 92.0f;
@@ -305,7 +305,7 @@ void UI_DrawInventory(const Game *g)
         }
     }
     for (i = 0; i < PLAYER_MAX_HEARTS; i++) DrawHeart(110.0f + i * 40.0f, SCREEN_H - 80.0f, 4.0f, i < g->player.hearts);
-    UI_Text(false, TextFormat("Treasures %d / %d     Enemies slain %d     Time %s", found, total, g->enemiesSlain,
+    UI_Text(false, TextFormat("Ward Seals %d / %d     Enemies defeated %d     Time %s", found, total, g->enemiesSlain,
                               TimeText(g->playTime)), 330, SCREEN_H - 84, 28, COL_BONE);
     UI_TextCentered(false, "Press I to close", SCREEN_W * 0.5f, SCREEN_H - 40, 24, COL_FADED);
 }
@@ -316,9 +316,9 @@ void UI_DrawDeath(const Game *g)
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 40, 0, 4, 190 });
     DrawTexturePro(vignette, (Rectangle){ 0, 0, (float)vignette.width, (float)vignette.height },
                    (Rectangle){ 0, 0, SCREEN_W, SCREEN_H }, (Vector2){ 0 }, 0.0f, WHITE);
-    UI_TextCentered(true, "YOU HAVE FALLEN", SCREEN_W * 0.5f, 220, 110, COL_BLOOD);
-    UI_TextCentered(false, "Press Enter to rise again", SCREEN_W * 0.5f, 370, 38, COL_BONE);
-    UI_TextCentered(false, "You will return to the last chest you opened. Your treasures are safe.",
+    UI_TextCentered(true, "THE FIRE TAKES YOU", SCREEN_W * 0.5f, 220, 110, COL_BLOOD);
+    UI_TextCentered(false, "[ ENTER ]  Rise from the ashes", SCREEN_W * 0.5f, 370, 38, COL_BONE);
+    UI_TextCentered(false, "You will return to the last reliquary you opened. Your Ward Seals are safe.",
                     SCREEN_W * 0.5f, 425, 26, COL_FADED);
 }
 
@@ -328,12 +328,23 @@ void UI_DrawVictory(const Game *g)
     for (w = 0; w < WING_COUNT; w++)
         for (i = 0; i < WINGS[w].chests; i++) { total++; if (g->found[w][i]) found++; }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 4, 3, 6, 225 });
-    UI_TextCentered(true, "YOU ESCAPED", SCREEN_W * 0.5f, 120, 100, COL_GOLD);
-    UI_TextCentered(true, "BLACKTHORN MANOR", SCREEN_W * 0.5f, 220, 100, COL_GOLD);
-    UI_TextCentered(false, TextFormat("Treasures collected: %d / %d", found, total), SCREEN_W * 0.5f, 370, 34, COL_BONE);
-    UI_TextCentered(false, TextFormat("Enemies slain: %d", g->enemiesSlain), SCREEN_W * 0.5f, 415, 34, COL_BONE);
+    UI_TextCentered(true, "THE BELLS ARE SILENT", SCREEN_W * 0.5f, 150, 100, COL_GOLD);
+    UI_TextCentered(false, TextFormat("Ward Seals found: %d / %d", found, total), SCREEN_W * 0.5f, 370, 34, COL_BONE);
+    UI_TextCentered(false, TextFormat("Enemies defeated: %d", g->enemiesSlain), SCREEN_W * 0.5f, 415, 34, COL_BONE);
     UI_TextCentered(false, TextFormat("Total time: %s", TimeText(g->playTime)), SCREEN_W * 0.5f, 460, 34, COL_BONE);
     UI_TextCentered(false, "Press Enter to return to the menu", SCREEN_W * 0.5f, 560, 28, COL_FADED);
+}
+
+/* The story, one line at a time: white text fading in and out on black. */
+void UI_DrawIntro(const Game *g)
+{
+    int line = (int)(g->introTime / INTRO_LINE_TIME);
+    float t = g->introTime - line * INTRO_LINE_TIME, a;
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, BLACK);
+    if (line >= INTRO_LINE_COUNT) return;
+    a = Clamp01(fminf(t / 1.0f, (INTRO_LINE_TIME - t) / 0.6f));
+    UI_TextCentered(false, INTRO_LINES[line], SCREEN_W * 0.5f, SCREEN_H * 0.5f - 22, 38, Alpha(WHITE, a));
+    UI_TextCentered(false, "[ ENTER ] skip", SCREEN_W * 0.5f, SCREEN_H - 60, 22, (Color){ 120, 110, 105, 255 });
 }
 
 void UI_DrawFade(const Game *g)

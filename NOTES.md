@@ -160,3 +160,13 @@ Decisions made while building, and things worth knowing.
 - `atmos.c`: 300 ash flakes wrap around the camera; 60 additive embers rise from nearby torches.
 - Bell tolls every 25-40 s: synthesised bell (`MakeBell`: 110/220/277/330/440 Hz partials, 4 s),
   red screen pulse, torches flare. A shorter cracked bell (`SND_BELL_BREAK`) is ready for Task 5.
+
+## Task 5 - Story texts
+- Wing files keep their layouts; only the first line changed (The Ash Gate ... The Bell Tower).
+- Ward Seal names replace the treasures (same counts). Banner "Ward Seal found: ...", HUD
+  "Ward Seals 1/3", chest prompt "[E] Hold to open reliquary".
+- Completing a wing: "THE FIRST BELL SHATTERS" banner, full red pulse, max camera shake and the
+  generated cracked-bell sound. Wing banners read "THE FIRST BELL - The Ash Gate".
+- New Game shows `STATE_INTRO` (4 lines on black, Enter/click/Esc skips), then wing 1.
+  Continue skips the intro.
+- Death screen: "THE FIRE TAKES YOU" / "[ ENTER ] Rise from the ashes". Menu is red and black.

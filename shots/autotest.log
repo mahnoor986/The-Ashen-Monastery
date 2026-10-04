@@ -1,15 +1,15 @@
 
 wing   name                                cells chunks vertices chests enemies torches
-1      The Gatehouse                        1230      6    14184      3       5      24   16.7 ms/frame
-2      The Grand Ballroom                   1564      7    17532      4       9      43   16.9 ms/frame
-3      The Moonlit Library                  1824      7    17700      4      10      37   16.9 ms/frame
-4      The Bone Chapel                      2000      7    24132      5      14      43   16.9 ms/frame
-5      The Witch Queen's Throne Room        1920      7    22620      5       8      25   17.0 ms/frame
+1      The Ash Gate                         1230      6    14184      3       5      24   17.0 ms/frame
+2      The Hall of Prayer                   1564      7    17532      4       9      43   16.8 ms/frame
+3      The Scriptorium                      1824      7    17700      4      10      37   16.8 ms/frame
+4      The Ossuary                          2000      7    24132      5      14      43   16.7 ms/frame
+5      The Bell Tower                       1920      7    22620      5       8      25   17.3 ms/frame
 
 flow test (wing 1, scripted input):
-  [ ok ] hold E opens chest 1 (Silver Chalice)
-  [ ok ] hold E opens chest 2 (Raven Brooch)
-  [ ok ] hold E opens chest 3 (Iron Rosary)
+  [ ok ] hold E opens chest 1 (Seal of Cinders)
+  [ ok ] hold E opens chest 2 (Seal of the Iron Key)
+  [ ok ] hold E opens chest 3 (Seal of the Pilgrim)
   [ ok ] exit door opens after the last chest
   [ ok ] door slides into the floor
   [ ok ] walking through the exit leaves the wing

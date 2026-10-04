@@ -19,12 +19,19 @@ const WingConfig WINGS[WING_COUNT] = WING_TABLE;
 const char *const TREASURES[WING_COUNT][MAX_CHESTS] = TREASURE_TABLE;
 const char *const WING_NAMES[WING_COUNT] = WING_NAME_TABLE;
 
-static const char *const ROMAN[WING_COUNT] = { "I", "II", "III", "IV", "V" };
+static const char *const ORDINAL[WING_COUNT] = { "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH" };
 
 const char *Game_WingTitle(int wing)
 {
-    return TextFormat("Wing %s", ROMAN[wing < 0 ? 0 : wing % WING_COUNT]);
+    return TextFormat("THE %s BELL", ORDINAL[wing < 0 ? 0 : wing % WING_COUNT]);
 }
+
+const char *const INTRO_LINES[INTRO_LINE_COUNT] = {
+    "Ten nights ago, the Red Abbot cast five bells from the ashes of the dead.",
+    "Each time they toll, the monastery burns, and the monks forget who they were.",
+    "Master Oren and the other apprentices are trapped in the Sanctum at the summit.",
+    "Climb, Kael. Break the bells.",
+};
 
 /* ============================================================ small helpers */
 
@@ -193,7 +200,7 @@ bool Game_LoadWing(Game *g, int wing)
 
     g->bannerCount = 0;
     PushBanner(g, TextFormat("%s \xE2\x80\x94 %s", Game_WingTitle(wing), g->world.name),
-               wing == 0 ? "Open every chest to unlock the iron door" : "", COL_BONE, BANNER_TIME + 1.0f);
+               wing == 0 ? "Find the Ward Seal in every reliquary to break the bell" : "", COL_BONE, BANNER_TIME + 1.0f);
     g->fade = 1.0f;
     g->leaving = false;
     g->hurtFlash = 0.0f;
@@ -233,11 +240,14 @@ static void CheckWingComplete(Game *g)
         PushBanner(g, "The Red Abbot still guards the last bell...", "Destroy him to break it", COL_BLOOD, BANNER_TIME);
         return;
     }
+    /* every seal is broken: the wing's cursed bell shatters and the way up opens */
     g->world.exitOpen = true;
-    PushBanner(g, lastWing ? "The manor gate is open!" : "The way forward is open...",
-               lastWing ? "Escape Blackthorn Manor" : "Find the iron door", COL_GOLD, BANNER_TIME);
-    Audio_Play(SND_DOOR, 1.0f);
-    Shake(g, SHAKE_DOOR);
+    PushBanner(g, TextFormat("THE %s BELL SHATTERS", ORDINAL[g->wing]),
+               lastWing ? "The way to the Sanctum is open" : "The way forward is open...", COL_BLOOD, BANNER_TIME + 0.8f);
+    Audio_Play(SND_BELL_BREAK, 1.0f);
+    Audio_Play(SND_DOOR, 0.8f);
+    Shake(g, 1.0f);
+    g->redPulse = 1.0f;
 }
 
 static void UpdateExit(Game *g, float dt)
@@ -269,7 +279,7 @@ static void UpdateExit(Game *g, float dt)
 static void OpenChest(Game *g, int i)
 {
     Vector3 c = CellCenter(g->world.chests[i]);
-    const char *name = TREASURES[g->wing][i] ? TREASURES[g->wing][i] : "treasure";
+    const char *name = TREASURES[g->wing][i] ? TREASURES[g->wing][i] : "a Ward Seal";
     g->chestOpened[i] = true;
     g->chestsOpened++;
     g->found[g->wing][i] = true;
@@ -278,7 +288,7 @@ static void OpenChest(Game *g, int i)
     g->checkpointYaw = g->player.yaw;
     g->useHold = 0.0f;
     g->useChest = -1;
-    PushBanner(g, TextFormat("You found the %s", name), "+1 heart   -   checkpoint saved", COL_GOLD, BANNER_TIME);
+    PushBanner(g, TextFormat("Ward Seal found: %s", name), "+1 heart   -   checkpoint saved", COL_GOLD, BANNER_TIME);
     Audio_Play(SND_TREASURE, 1.0f);
     Shake(g, SHAKE_CHEST);
     c.y = 0.6f;
@@ -443,7 +453,7 @@ static void CastLightning(Game *g, const Input *in)
                 /* a wraith in the dark: the lightning passes straight through */
                 if (!g->ghostHintShown) {
                     g->ghostHintShown = true;
-                    PushBanner(g, "Your lightning passes through!", "Ghosts can only be hurt in the light - fight them near you or a torch",
+                    PushBanner(g, "Your lightning passes through!", "Choir Wraiths can only be hurt in the light - fight them near you or a torch",
                                (Color){ 170, 200, 255, 255 }, BANNER_TIME + 1.0f);
                 }
                 continue;
@@ -602,7 +612,7 @@ static void UpdateMenu(Game *g, const Input *in, float dt)
     if (pick < 0) return;
     Audio_Play(SND_CLICK, 1.0f);
     switch (actions[pick]) {
-    case 0: Game_NewGame(g, 0); break;
+    case 0: g->state = STATE_INTRO; g->introTime = 0.0f; break;      /* story first, then wing 1 */
     case 1: Game_NewGame(g, g->savedWing - 1); break;
     default: g->quit = true; break;
     }
@@ -651,6 +661,11 @@ void Game_Update(Game *g, const Input *in, float dt)
         break;
     case STATE_DEAD:
         if (in->confirm || in->click) Respawn(g);
+        break;
+    case STATE_INTRO:
+        g->introTime += dt;
+        if (in->confirm || in->click || in->pause || g->introTime >= INTRO_LINE_COUNT * INTRO_LINE_TIME + 0.5f)
+            Game_NewGame(g, 0);
         break;
     case STATE_VICTORY:
         if (in->confirm || in->click) EnterMenu(g);
@@ -838,7 +853,7 @@ void Game_Draw(Game *g)
     /* 3D at low resolution, then up-scaled through the post-process, then crisp UI on top */
     Post_BeginScene();
     ClearBackground(COL_NEARBLACK);
-    if (g->worldLoaded) DrawScene(g, cam, g->state != STATE_MENU);
+    if (g->worldLoaded && g->state != STATE_INTRO) DrawScene(g, cam, g->state != STATE_MENU);
     Post_EndScene();
 
     Screen_Begin();
@@ -850,6 +865,7 @@ void Game_Draw(Game *g)
     case STATE_PAUSED:    UI_DrawHUD(g); UI_DrawPause(g); break;
     case STATE_INVENTORY: UI_DrawInventory(g); break;
     case STATE_DEAD:      UI_DrawDeath(g); break;
+    case STATE_INTRO:     UI_DrawIntro(g); break;
     case STATE_VICTORY:   UI_DrawVictory(g); break;
     }
     UI_DrawFade(g);
@@ -1123,6 +1139,10 @@ int Game_Autotest(Game *g)
     EnterMenu(g);
     for (f = 0; f < 60; f++) Frame(g, &none, dt, f == 59);
     if (!Screen_Save("shots/menu.png")) { printf("autotest: could not write shots/menu.png\n"); failures++; }
+    g->state = STATE_INTRO;
+    g->introTime = INTRO_LINE_TIME * 3.0f + 1.5f;       /* the last line, fully faded in */
+    Game_Draw(g);
+    Screen_Save("shots/intro.png");
 
     printf("\n%-6s %-34s %6s %6s %8s %6s %7s %7s\n", "wing", "name", "cells", "chunks", "vertices", "chests", "enemies", "torches");
     for (i = 0; i < WING_COUNT; i++) {
