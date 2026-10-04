@@ -1,10 +1,10 @@
 
 wing   name                                cells chunks vertices chests enemies torches
-1      The Ash Gate                         1230      6    14184      3       5      24   17.0 ms/frame
-2      The Hall of Prayer                   1564      7    17532      4       9      43   16.8 ms/frame
-3      The Scriptorium                      1824      7    17700      4      10      37   16.8 ms/frame
-4      The Ossuary                          2000      7    24132      5      14      43   16.7 ms/frame
-5      The Bell Tower                       1920      7    22620      5       8      25   17.3 ms/frame
+1      The Ash Gate                         1230      6    14184      3       5      24   17.2 ms/frame
+2      The Hall of Prayer                   1564      7    17532      4       9      43   17.1 ms/frame
+3      The Scriptorium                      1824      7    17700      4      10      37   16.7 ms/frame
+4      The Ossuary                          2000      7    24132      5      14      43   16.9 ms/frame
+5      The Bell Tower                       1920      7    22620      5       8      25   16.9 ms/frame
 
 flow test (wing 1, scripted input):
   [ ok ] hold E opens chest 1 (Seal of Cinders)
@@ -31,6 +31,14 @@ queen test (wing 5):
   [ ok ] at half health she summons two ghosts
   [ ok ] the Queen can be destroyed
   [ ok ] the manor gate opens
-  [ ok ] escaping through the gate shows the victory screen
+  [ ok ] breaking the fifth bell leads to the Sanctum
+
+sanctum test:
+  [ ok ] the Sanctum loads (no chests, no exit)
+  [ ok ] Master Oren and his apprentices are there
+  [ ok ] a friend speaks when Kael comes close
+  [ ok ] "[E] Speak with Master Oren" appears
+  [ ok ] E starts the dialogue
+  [ ok ] after his last line: fade to the final screen
 
 autotest passed (0 failures)

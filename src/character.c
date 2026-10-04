@@ -348,3 +348,46 @@ void Character_DrawBolt(Vector3 pos, float spin)
     GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.28f, 0.28f, 0.28f }, (Color){ 255, 80, 20, 255 });
     GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.16f, 0.36f, 0.16f }, (Color){ 255, 220, 120, 255 });
 }
+
+/* ------------------------------------------------------------ Sanctum NPCs */
+
+/* A friendly robed person (normal proportions, no glowing eyes). `oren` adds a long white beard,
+ * white hair and a tall staff with a glowing gold tip. */
+void Character_DrawRobedNpc(const CharPose *p, Color robe, bool oren)
+{
+    const Color skin = { 206, 160, 128, 255 }, hair = { 58, 38, 26, 255 }, white = { 232, 230, 224, 255 };
+    const Color eye = { 30, 20, 18, 255 }, wood = { 70, 46, 26, 255 }, gold = { 255, 210, 90, 255 };
+    Color trim = { (unsigned char)(robe.r * 0.7f), (unsigned char)(robe.g * 0.7f), (unsigned char)(robe.b * 0.7f), 255 };
+    float breathe = sinf(p->time * 1.8f) * 0.012f;
+    Matrix root, body, arm, head;
+    int side;
+
+    pose = p;
+    root = RootFrame(p, 1.0f);
+    body = MatrixMultiply(MatrixTranslate(0.0f, breathe, 0.0f), root);
+
+    Part(body, (Vector3){ 0.0f, 0.46f, 0.0f }, (Vector3){ 0.58f, 0.92f, 0.44f }, robe);
+    Part(body, (Vector3){ 0.0f, 1.16f, 0.0f }, (Vector3){ 0.50f, 0.50f, 0.34f }, robe);
+    Part(body, (Vector3){ 0.0f, 0.90f, 0.0f }, (Vector3){ 0.52f, 0.07f, 0.36f }, trim);           /* belt */
+
+    for (side = -1; side <= 1; side += 2) {
+        float rx = (oren && side < 0) ? -0.5f : 0.05f;
+        arm = Joint(body, (Vector3){ 0.31f * side, 1.36f, 0.0f }, rx, 0.0f, 0.06f * side);
+        Part(arm, (Vector3){ 0.0f, -0.28f, 0.0f }, (Vector3){ 0.15f, 0.56f, 0.17f }, robe);
+        Part(arm, (Vector3){ 0.0f, -0.60f, 0.0f }, (Vector3){ 0.10f, 0.10f, 0.10f }, skin);
+        if (oren && side < 0) {
+            /* tall staff held upright, glowing gold tip */
+            Matrix hand = Joint(arm, (Vector3){ 0.0f, -0.60f, 0.0f }, 0.5f, 0.0f, 0.0f);
+            Part(hand, (Vector3){ 0.0f, 0.35f, 0.0f }, (Vector3){ 0.06f, 2.0f, 0.06f }, wood);
+            GlowPart(hand, (Vector3){ 0.0f, 1.40f, 0.0f }, (Vector3){ 0.14f, 0.14f, 0.14f }, gold);
+        }
+    }
+
+    head = Joint(body, (Vector3){ 0.0f, 1.42f, 0.0f }, 0.0f, 0.0f, 0.0f);
+    Part(head, (Vector3){ 0.0f, 0.19f, 0.0f }, (Vector3){ 0.34f, 0.36f, 0.34f }, skin);
+    Part(head, (Vector3){ -0.07f, 0.22f, 0.172f }, (Vector3){ 0.05f, 0.04f, 0.02f }, eye);
+    Part(head, (Vector3){  0.07f, 0.22f, 0.172f }, (Vector3){ 0.05f, 0.04f, 0.02f }, eye);
+    Part(head, (Vector3){ 0.0f, 0.39f, -0.02f }, (Vector3){ 0.37f, 0.08f, 0.38f }, oren ? white : hair);   /* hair */
+    Part(head, (Vector3){ 0.0f, 0.24f, -0.15f }, (Vector3){ 0.37f, 0.30f, 0.08f }, oren ? white : hair);
+    if (oren) Part(head, (Vector3){ 0.0f, -0.02f, 0.17f }, (Vector3){ 0.26f, 0.34f, 0.08f }, white);  /* long beard */
+}

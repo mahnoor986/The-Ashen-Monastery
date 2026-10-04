@@ -26,6 +26,15 @@ const char *Game_WingTitle(int wing)
     return TextFormat("THE %s BELL", ORDINAL[wing < 0 ? 0 : wing % WING_COUNT]);
 }
 
+const char *const OREN_LINES[OREN_LINE_COUNT] = {
+    "Kael... the fifth bell has fallen. I heard it break from here.",
+    "We thought the fire would take us all. Ilsa kept the candles lit. Tobin counted every toll.",
+    "The Abbot rang those bells to keep the mountain burning. You walked through his fire, and you came back.",
+    "Rest now. Tomorrow, you are no longer an apprentice.",
+};
+
+static const WingConfig SANCTUM = SANCTUM_CONFIG;
+
 const char *const INTRO_LINES[INTRO_LINE_COUNT] = {
     "Ten nights ago, the Red Abbot cast five bells from the ashes of the dead.",
     "Each time they toll, the monastery burns, and the monks forget who they were.",
@@ -161,10 +170,14 @@ bool Game_LoadWing(Game *g, int wing)
     if (wing < 0 || wing >= WING_COUNT) return false;
     if (g->worldLoaded) World_Unload(&g->world);
     g->worldLoaded = false;
-    if (!World_Load(&g->world, WINGS[wing].file, WINGS[wing].chests)) return false;
+    if (!World_Load(&g->world, WINGS[wing].file, WINGS[wing].chests, true)) return false;
     World_BuildMeshes(&g->world);
     g->worldLoaded = true;
     g->wing = wing;
+    g->sanctum = false;
+    g->npcCount = 0;
+    Render_SetWarm(false);
+    Audio_SetCalm(false);
     g->wingTime = 0.0f;
 
     /* enemies, bolts, particles */
@@ -224,6 +237,76 @@ void Game_NewGame(Game *g, int wing)
     SetMouseCaptured(g, true);
 }
 
+/* The Sanctum: Master Oren, the apprentices and the freed monks wait in warm candlelight. */
+bool Game_LoadSanctum(Game *g)
+{
+    static const Color apprenticeRobes[3] = { { 34, 52, 120, 255 }, { 112, 74, 40, 255 }, { 44, 104, 56, 255 } };
+    static const char *const names[3] = { "Ilsa", "Tobin", "Mira" };
+    static const char *const lines[3] = {
+        "You're covered in ash. Welcome back.",
+        "Five bells. I counted every one.",
+        "Was he... was the Abbot still human, at the end?",
+    };
+    int i, apprentices = 0;
+    float midX;
+
+    if (g->worldLoaded) World_Unload(&g->world);
+    g->worldLoaded = false;
+    if (!World_Load(&g->world, SANCTUM_FILE, 0, false)) return false;
+    World_BuildMeshes(&g->world);
+    g->worldLoaded = true;
+    g->sanctum = true;
+    g->enemyCount = 0;
+    memset(g->bolts, 0, sizeof(g->bolts));
+    memset(g->particles, 0, sizeof(g->particles));
+    g->chestsOpened = 0;
+    g->useChest = -1;
+    g->talkNpc = -1;
+    g->nearOren = false;
+    g->dialogLine = 0;
+    g->endFade = 0.0f;
+    g->redPulse = 0.0f;
+    g->torchFlare = 0.0f;
+
+    midX = g->world.w * 0.5f;
+    g->npcCount = 0;
+    for (i = 0; i < g->world.npcCount; i++) {
+        const Spawn *s = &g->world.npcs[i];
+        Npc *n = &g->npcs[g->npcCount++];
+        memset(n, 0, sizeof(*n));
+        n->pos = s->pos;
+        if (s->type == 'O') {
+            n->oren = true;
+            n->name = "Master Oren";
+            n->robe = (Color){ 120, 118, 116, 255 };
+        } else if (apprentices < 3) {
+            n->name = names[apprentices];
+            n->line = lines[apprentices];
+            n->robe = apprenticeRobes[apprentices];
+            apprentices++;
+        } else {
+            n->robe = (Color){ 178, 176, 170, 255 };      /* a freed monk in light grey */
+        }
+        n->yaw = n->pos.x < midX ? PI * 0.5f : -PI * 0.5f;   /* monks face the carpet */
+    }
+
+    {
+        bool god = g->player.god;
+        Player_Init(&g->player, g->world.start, g->world.startYaw);
+        g->player.god = god;
+    }
+    CameraRig_Init(&g->rig, g->world.startYaw);
+    CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
+    Render_SetWarm(true);
+    Audio_SetCalm(true);
+    g->bannerCount = 0;
+    PushBanner(g, "THE SANCTUM", "The bells are broken. Your friends are waiting.", COL_GOLD, BANNER_TIME + 1.0f);
+    g->fade = 1.0f;
+    g->leaving = false;
+    g->state = STATE_PLAYING;
+    return true;
+}
+
 static void Victory(Game *g)
 {
     g->state = STATE_VICTORY;
@@ -266,7 +349,8 @@ static void UpdateExit(Game *g, float dt)
     if (g->leaving) {
         g->fade += dt * FADE_SPEED;
         if (g->fade >= 1.0f) {
-            if (g->wing + 1 >= WING_COUNT || !Game_LoadWing(g, g->wing + 1)) Victory(g);
+            if (g->wing + 1 >= WING_COUNT) { if (!Game_LoadSanctum(g)) Victory(g); }   /* after the last bell */
+            else if (!Game_LoadWing(g, g->wing + 1)) Victory(g);
             else WriteSave(g, g->wing + 1);         /* reached a new wing: remember it */
         }
     } else if (g->fade > 0.0f) {
@@ -531,6 +615,45 @@ static void CompleteWing(Game *g)
 
 /* ============================================================ per-state update */
 
+static void UpdateBanners(Game *g, float dt);
+
+static void UpdateSanctum(Game *g, const Input *in, float dt)
+{
+    int i, near = -1;
+    float nearD = 1e9f;
+    for (i = 0; i < g->npcCount; i++) {
+        Npc *n = &g->npcs[i];
+        float d = FlatDist(g->player.pos, n->pos);
+        if (n->name) {          /* named people turn to look at Kael */
+            float want = YawTo(n->pos, g->player.pos);
+            n->yaw += AngleDiff(n->yaw, want) * fminf(1.0f, 3.0f * dt);
+        }
+        if (n->name && d < NPC_TALK_RANGE && d < nearD) { nearD = d; near = i; }
+    }
+    g->talkNpc = (near >= 0 && g->npcs[near].line) ? near : -1;
+    g->nearOren = near >= 0 && g->npcs[near].oren;
+    if (g->nearOren && (in->usePressed || (g->autotest && in->use))) {
+        g->state = STATE_DIALOGUE;
+        g->bannerCount = 0;
+        g->dialogLine = 0;
+        g->endFade = 0.0f;
+        SetMouseCaptured(g, false);
+    }
+}
+
+static void UpdateDialogue(Game *g, const Input *in, float dt)
+{
+    if (g->dialogLine >= OREN_LINE_COUNT) {               /* fade to black, then the final screen */
+        g->endFade += dt * 0.6f;
+        if (g->endFade >= 1.0f) { g->endFade = 0.0f; Victory(g); }
+        return;
+    }
+    if (in->confirm || in->click || in->usePressed) {
+        g->dialogLine++;
+        Audio_Play(SND_CLICK, 0.4f);
+    }
+}
+
 static void UpdatePlaying(Game *g, const Input *in, float dt)
 {
     Input cam = *in;
@@ -560,6 +683,12 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     CameraRig_Update(&g->rig, &g->player, &g->world, &cam, dt);
 
     if (g->beamTime > 0.0f) g->beamTime -= dt;
+    if (g->sanctum) {                       /* peaceful: no wand, no enemies, no bells */
+        UpdateSanctum(g, in, dt);
+        UpdateBanners(g, dt);
+        if (g->fade > 0.0f) g->fade = fmaxf(0.0f, g->fade - dt * FADE_SPEED);
+        return;
+    }
     CastLightning(g, in);
     UpdateEnemies(g, dt);
     if (g->state != STATE_PLAYING) return;          /* died */
@@ -648,7 +777,7 @@ void Game_Update(Game *g, const Input *in, float dt)
     if (in->togglePost) Post_Toggle();
     if (g->redPulse > 0.0f) g->redPulse = fmaxf(0.0f, g->redPulse - dt * 1.5f);
     if (g->torchFlare > 0.0f) g->torchFlare = fmaxf(0.0f, g->torchFlare - dt * 0.8f);
-    if (g->worldLoaded) Atmos_Update(&g->atmos, g->rig.cam.position, &g->world, dt);
+    if (g->worldLoaded && !g->sanctum) Atmos_Update(&g->atmos, g->rig.cam.position, &g->world, dt);
     if (g->shake > 0.0f) g->shake = fmaxf(0.0f, g->shake - SHAKE_DECAY * dt);
     if (g->hurtFlash > 0.0f) g->hurtFlash -= dt;
 
@@ -662,6 +791,7 @@ void Game_Update(Game *g, const Input *in, float dt)
     case STATE_DEAD:
         if (in->confirm || in->click) Respawn(g);
         break;
+    case STATE_DIALOGUE:  UpdateDialogue(g, in, dt); break;
     case STATE_INTRO:
         g->introTime += dt;
         if (in->confirm || in->click || in->pause || g->introTime >= INTRO_LINE_COUNT * INTRO_LINE_TIME + 0.5f)
@@ -788,7 +918,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
                                  : (Vector3){ cam.position.x, cam.position.y - PLAYER_LIGHT_HEIGHT, cam.position.z };
 
     Render_SetFlare(g->torchFlare);
-    Render_BeginFrame(&WINGS[g->wing], cam, lightAt, g->time);
+    Render_BeginFrame(g->sanctum ? &SANCTUM : &WINGS[g->wing], cam, lightAt, g->time);
     if (g->beamTime > 0.0f) {
         float f = g->beamTime / BEAM_TIME;
         Render_SetFlash(g->beamEnd, (Vector3){ 2.6f * f, 0.15f * f, 0.1f * f }, FLASH_RADIUS);
@@ -818,7 +948,17 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     }
     Bolts_Draw(g->bolts);
     DrawBeam(g);
-    Atmos_Draw(&g->atmos);
+    if (!g->sanctum) Atmos_Draw(&g->atmos);
+    for (i = 0; i < g->npcCount; i++) {
+        const Npc *n = &g->npcs[i];
+        CharPose np = { 0 };
+        np.pos = n->pos;
+        np.yaw = n->yaw;
+        np.time = g->time + i * 0.7f;
+        np.swing = -1.0f;
+        Render_UseEntityLight(World_LightAt(&g->world, (Vector3){ n->pos.x, 1.0f, n->pos.z }));
+        Character_DrawRobedNpc(&np, n->robe, n->oren);
+    }
     for (i = 0; i < MAX_PARTICLES; i++) {
         const Particle *p = &g->particles[i];
         float s = p->size * fminf(1.0f, p->life / (p->maxLife * 0.5f + 0.001f));
@@ -839,9 +979,28 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     EndMode3D();
 }
 
-void Game_Draw(Game *g)
+/* During Master Oren's dialogue: a side view framing Kael and Oren. */
+static Camera3D DialogueCamera(const Game *g)
 {
     Camera3D cam = g->rig.cam;
+    int i;
+    for (i = 0; i < g->npcCount; i++) {
+        Vector3 o = g->npcs[i].pos, p = g->player.pos, d, side, mid;
+        if (!g->npcs[i].oren) continue;
+        d = Vector3Subtract(o, p);
+        d.y = 0.0f;
+        d = Vector3Length(d) > 0.01f ? Vector3Normalize(d) : (Vector3){ 0, 0, -1 };
+        side = (Vector3){ -d.z, 0.0f, d.x };
+        mid = Vector3Scale(Vector3Add(o, p), 0.5f);
+        cam.position = Vector3Add(Vector3Add(mid, Vector3Scale(side, 2.8f)), (Vector3){ -d.x * 0.6f, 1.75f, -d.z * 0.6f });
+        cam.target = Vector3Add(mid, (Vector3){ d.x * 0.3f, 1.45f, d.z * 0.3f });
+    }
+    return cam;
+}
+
+void Game_Draw(Game *g)
+{
+    Camera3D cam = g->state == STATE_DIALOGUE ? DialogueCamera(g) : g->rig.cam;
 
     if (g->shake > 0.0f && !g->autotest) {
         float s = g->shake * g->shake * SHAKE_SIZE;
@@ -852,13 +1011,13 @@ void Game_Draw(Game *g)
     }
     /* 3D at low resolution, then up-scaled through the post-process, then crisp UI on top */
     Post_BeginScene();
-    ClearBackground(COL_NEARBLACK);
+    ClearBackground(g->sanctum ? (Color){ 26, 15, 5, 255 } : COL_NEARBLACK);
     if (g->worldLoaded && g->state != STATE_INTRO) DrawScene(g, cam, g->state != STATE_MENU);
     Post_EndScene();
 
     Screen_Begin();
     ClearBackground(BLACK);
-    Post_Draw(g->time, 0, g->redPulse);
+    Post_Draw(g->time, g->sanctum ? 1 : 0, g->redPulse);
     switch (g->state) {
     case STATE_MENU:      UI_DrawMenu(g); break;
     case STATE_PLAYING:   UI_DrawHUD(g); break;
@@ -866,6 +1025,7 @@ void Game_Draw(Game *g)
     case STATE_INVENTORY: UI_DrawInventory(g); break;
     case STATE_DEAD:      UI_DrawDeath(g); break;
     case STATE_INTRO:     UI_DrawIntro(g); break;
+    case STATE_DIALOGUE:  UI_DrawHUD(g); UI_DrawDialogue(g); break;
     case STATE_VICTORY:   UI_DrawVictory(g); break;
     }
     UI_DrawFade(g);
@@ -1059,8 +1219,48 @@ static int QueenTest(Game *g)
     in = none;
     in.move.y = 1.0f;
     for (i = 0; i < 400 && g->state == STATE_PLAYING; i++) Frame(g, &in, 1.0f / 60.0f, false);
-    fails += Check(g->state == STATE_VICTORY, "escaping through the gate shows the victory screen");
+    fails += Check(g->state == STATE_PLAYING && g->sanctum, "breaking the fifth bell leads to the Sanctum");
     g->player.god = false;
+    return fails;
+}
+
+/* The Sanctum: render it, talk to a friend, then Master Oren's dialogue -> final screen. */
+static int SanctumTest(Game *g)
+{
+    Input none = { 0 }, in;
+    int fails = 0, i, f, oren = -1, friendNpc = -1;
+    printf("\nsanctum test:\n");
+    fails += Check(Game_LoadSanctum(g), "the Sanctum loads (no chests, no exit)");
+    if (!g->sanctum) return fails;
+    for (i = 0; i < g->npcCount; i++) {
+        if (g->npcs[i].oren) oren = i;
+        if (g->npcs[i].line && friendNpc < 0) friendNpc = i;
+    }
+    fails += Check(oren >= 0 && friendNpc >= 0, "Master Oren and his apprentices are there");
+    for (f = 0; f < 90; f++) Frame(g, &none, 1.0f / 60.0f, f == 89);
+    Screen_Save("shots/sanctum.png");
+    if (oren < 0 || friendNpc < 0) return fails;
+
+    g->player.pos = Vector3Add(g->npcs[friendNpc].pos, (Vector3){ 0.0f, 0.0f, 1.2f });
+    Frame(g, &none, 1.0f / 60.0f, false);
+    fails += Check(g->talkNpc == friendNpc, "a friend speaks when Kael comes close");
+
+    g->player.pos = Vector3Add(g->npcs[oren].pos, (Vector3){ 0.0f, 0.0f, 1.3f });
+    g->player.yaw = g->rig.yaw = PI;
+    Frame(g, &none, 1.0f / 60.0f, false);
+    fails += Check(g->nearOren, "\"[E] Speak with Master Oren\" appears");
+    in = none;
+    in.use = true;
+    Frame(g, &in, 1.0f / 60.0f, true);
+    Screen_Save("shots/dialogue.png");
+    fails += Check(g->state == STATE_DIALOGUE, "E starts the dialogue");
+    in = none;
+    in.confirm = true;
+    for (i = 0; i < OREN_LINE_COUNT; i++) { Frame(g, &in, 1.0f / 60.0f, false); Frame(g, &none, 1.0f / 60.0f, false); }
+    Simulate(g, &none, 2.5f);
+    fails += Check(g->state == STATE_VICTORY, "after his last line: fade to the final screen");
+    Frame(g, &none, 1.0f / 60.0f, true);
+    Screen_Save("shots/victory.png");
     return fails;
 }
 
@@ -1178,6 +1378,7 @@ int Game_Autotest(Game *g)
         LightningShot(g);
         failures += BalanceTest(g);
         failures += QueenTest(g);
+        failures += SanctumTest(g);
         BossShot(g);
     } else {
         failures++;
@@ -1207,9 +1408,7 @@ int Game_Autotest(Game *g)
         Die(g);
         Frame(g, &none, dt, true);
         Screen_Save("shots/death.png");
-        Victory(g);
-        Frame(g, &none, dt, true);
-        Screen_Save("shots/victory.png");
+
     }
 
     printf("\nautotest %s (%d failure%s)\n", failures ? "FAILED" : "passed", failures, failures == 1 ? "" : "s");

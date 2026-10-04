@@ -13,7 +13,7 @@
 
 static bool IsWallChar(char c)  { return c == '#' || c == 'W' || c == 'B' || c == 'P' || c == 'T'; }
 static bool IsFloorChar(char c) { return c == '.' || c == '=' || c == ','; }
-static bool IsKnownChar(char c) { return IsWallChar(c) || IsFloorChar(c) || (c && strchr("x@CEsgwQ", c)); }
+static bool IsKnownChar(char c) { return IsWallChar(c) || IsFloorChar(c) || (c && strchr("x@CEsgwQOa", c)); }
 
 static int WallTile(char c)
 {
@@ -156,7 +156,7 @@ static int NearestFloorTile(const World *w, int sx, int sz)
     return TILE_STONE_FLOOR;
 }
 
-bool World_Load(World *w, const char *path, int expectedChests)
+bool World_Load(World *w, const char *path, int expectedChests, bool needExit)
 {
     static short qx[WORLD_MAX_W * WORLD_MAX_H], qz[WORLD_MAX_W * WORLD_MAX_H];
     static unsigned char reach[WORLD_MAX_H][WORLD_MAX_W];
@@ -226,6 +226,13 @@ bool World_Load(World *w, const char *path, int expectedChests)
                 if (w->exitCount < MAX_EXIT_CELLS) w->exits[w->exitCount++] = (Cell){ x, z };
                 else errors += Report(file, z + 2, x + 1, "too many exit cells (max %d)", MAX_EXIT_CELLS);
                 break;
+            case 'O': case 'a':                     /* Sanctum: Master Oren, apprentices/monks */
+                if (w->npcCount < MAX_NPCS) {
+                    w->npcs[w->npcCount].type = c;
+                    w->npcs[w->npcCount].pos = center;
+                    w->npcCount++;
+                } else errors += Report(file, z + 2, x + 1, "too many NPCs (max %d)", MAX_NPCS);
+                break;
             case 's': case 'g': case 'w': case 'Q':
                 if (w->spawnCount < MAX_SPAWNS) {
                     w->spawns[w->spawnCount].type = c;
@@ -238,7 +245,7 @@ bool World_Load(World *w, const char *path, int expectedChests)
         }
     }
     if (starts != 1) errors += Report(file, 2, 1, "map needs exactly one '@' player start (found %d)", starts);
-    if (w->exitCount < 1) errors += Report(file, 2, 1, "map needs at least one 'E' exit door");
+    if (needExit && w->exitCount < 1) errors += Report(file, 2, 1, "map needs at least one 'E' exit door");
     if (w->chestCount != expectedChests)
         errors += Report(file, 2, 1, "map has %d chests 'C', config expects %d", w->chestCount, expectedChests);
     if (w->chestCount > MAX_CHESTS) { w->chestCount = MAX_CHESTS; errors++; }

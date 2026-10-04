@@ -19,6 +19,7 @@ typedef enum {
     STATE_DEAD,           /* "THE FIRE TAKES YOU" */
     STATE_VICTORY,        /* "THE BELLS ARE SILENT" */
     STATE_INTRO,          /* the story, line by line, before wing 1 */
+    STATE_DIALOGUE,       /* Master Oren speaks (Sanctum) */
 } GameState;
 
 typedef struct {
@@ -36,6 +37,15 @@ typedef struct {
     float   life, maxLife, size;
     Color   color;
 } Particle;
+
+typedef struct {
+    Vector3     pos;
+    float       yaw;
+    Color       robe;
+    bool        oren;
+    const char *name;     /* NULL for the freed monks */
+    const char *line;     /* what a friend says when you come close */
+} Npc;
 
 typedef struct Game {
     GameState state;
@@ -85,6 +95,15 @@ typedef struct Game {
     float     wingTime;                /* seconds since entering the current wing */
     int       menuSel, pauseSel;
     float     introTime;               /* seconds into the intro text */
+
+    /* the Sanctum ending */
+    bool      sanctum;                 /* in the Sanctum (warm, peaceful, no enemies) */
+    Npc       npcs[MAX_NPCS];
+    int       npcCount;
+    int       talkNpc;                 /* friend currently speaking (-1 none) */
+    bool      nearOren;                /* show "[E] Speak with Master Oren" */
+    int       dialogLine;              /* Master Oren's line being shown */
+    float     endFade;                 /* fade to black after the last line */
     bool      mouseLook;               /* mouse captured for camera control */
     int       mouseSkip;               /* frames to ignore mouse movement after capturing */
     bool      autotest;
@@ -96,11 +115,14 @@ typedef struct Game {
 extern const char *const TREASURES[WING_COUNT][MAX_CHESTS];
 extern const char *const WING_NAMES[WING_COUNT];
 #define INTRO_LINE_COUNT 4
+#define OREN_LINE_COUNT 4
+extern const char *const OREN_LINES[OREN_LINE_COUNT];
 extern const char *const INTRO_LINES[INTRO_LINE_COUNT];
 
 void Game_Init(Game *g, int startWing, bool directStart, bool autotest);
 void Game_NewGame(Game *g, int wing);       /* start a run at this wing */
 bool Game_LoadWing(Game *g, int wing);      /* false if the wing file is missing/invalid */
+bool Game_LoadSanctum(Game *g);             /* the ending scene after wing 5 */
 void Game_Update(Game *g, const Input *in, float dt);
 void Game_Draw(Game *g);                    /* draws into the virtual screen */
 int  Game_Autotest(Game *g);                /* returns the process exit code */

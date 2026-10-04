@@ -202,6 +202,19 @@
     { "Seal of Embers", "Seal of the Rope", "Seal of the Toll", "Seal of the Abbot's Ring", "Seal of the Red Flame" }, \
 }
 
+/* --------------------------------------------------------------- sanctum */
+#define SANCTUM_FILE        "assets/wings/sanctum.txt"
+#define MAX_NPCS            16
+#define NPC_TALK_RANGE      2.0f        /* friends speak when you come this close */
+#define SANCTUM_FOG_R       0.10f       /* warm, dark amber fog */
+#define SANCTUM_FOG_G       0.06f
+#define SANCTUM_FOG_B       0.02f
+#define SANCTUM_TINT_R      1.25f       /* golden ambient light */
+#define SANCTUM_TINT_G      1.00f
+#define SANCTUM_TINT_B      0.65f
+/* lighting for the Sanctum (same fields as a wing; only fog, light and ambient are used) */
+#define SANCTUM_CONFIG { SANCTUM_FILE, 0, 1.0f, 1.0f, 1.0f, 0.045f, 9.0f, 0.34f }
+
 /* ----------------------------------------------------------------- wings */
 #define WING_COUNT 5
 

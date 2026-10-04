@@ -30,6 +30,8 @@ void Character_DrawMonk(const CharPose *p);       /* Ashen Monk: charred hooded 
 void Character_DrawWraith(const CharPose *p);     /* Choir Wraith: draw in the transparent pass */
 void Character_DrawPriest(const CharPose *p);     /* Ember Priest: crimson robe, tall hood, censer */
 void Character_DrawAbbot(const CharPose *p);      /* The Red Abbot: 1.8x, bell mitre, two fireballs */
+/* A friendly robed person in the Sanctum; `oren` adds beard, white hair and a glowing staff. */
+void Character_DrawRobedNpc(const CharPose *p, Color robe, bool oren);
 /* A fireball (spinning orange cube) at `pos`. */
 void Character_DrawBolt(Vector3 pos, float spin);
 

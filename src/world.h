@@ -35,14 +35,16 @@ typedef struct {
     bool  exitOpen;                          /* door no longer blocks */
     float doorSlide;                         /* 0 = closed, 1 = fully sunk into the floor */
     Spawn spawns[MAX_SPAWNS];    int spawnCount;
+    Spawn npcs[MAX_NPCS];        int npcCount;   /* 'O' Master Oren, 'a' apprentices/monks */
     Torch torches[MAX_TORCHES];  int torchCount;
 
     Mesh  chunks[MAX_CHUNKS];    int chunkCount;
     int   vertexCount;                       /* total over all chunks (for the autotest summary) */
 } World;
 
-/* Load + validate a wing file. Prints errors (file:line:col) to stdout and returns false on any error. */
-bool World_Load(World *w, const char *path, int expectedChests);
+/* Load + validate a wing file. Prints errors (file:line:col) to stdout and returns false on any error.
+ * needExit = false allows a map without an 'E' (the Sanctum). */
+bool World_Load(World *w, const char *path, int expectedChests, bool needExit);
 void World_BuildMeshes(World *w);            /* needs a GL context (after InitWindow) */
 void World_Unload(World *w);
 

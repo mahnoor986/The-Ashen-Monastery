@@ -10,6 +10,7 @@
 #define SHADER_FS "assets/shaders/world.fs"
 
 static float    flare;        /* 0..1 torch flare when a bell tolls */
+static bool     warm;         /* Sanctum: golden fog and ambient */
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;
@@ -111,10 +112,12 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
 {
     if (!hasShader) return;
     SetV3(shader.locs[SHADER_LOC_VECTOR_VIEW], cam.position);
-    SetV3(locFogColor, (Vector3){ FOG_COLOR_R, FOG_COLOR_G, FOG_COLOR_B });
+    SetV3(locFogColor, warm ? (Vector3){ SANCTUM_FOG_R, SANCTUM_FOG_G, SANCTUM_FOG_B }
+                            : (Vector3){ FOG_COLOR_R, FOG_COLOR_G, FOG_COLOR_B });
     SetF(locFogDensity, wing->fogDensity);
     SetF(locAmbient, wing->ambient);
-    SetV3(locAmbientTint, (Vector3){ AMBIENT_TINT_R, AMBIENT_TINT_G, AMBIENT_TINT_B });
+    SetV3(locAmbientTint, warm ? (Vector3){ SANCTUM_TINT_R, SANCTUM_TINT_G, SANCTUM_TINT_B }
+                               : (Vector3){ AMBIENT_TINT_R, AMBIENT_TINT_G, AMBIENT_TINT_B });
     {
         Vector2 snap = { PS1_WOBBLE ? PS1_WOBBLE_GRID_W : 0.0f, PS1_WOBBLE_GRID_H };
         SetShaderValue(shader, locSnap, &snap, SHADER_UNIFORM_VEC2);
@@ -164,6 +167,11 @@ void Render_SetEmissiveMode(int mode)
 void Render_SetFlare(float amount)
 {
     flare = amount;
+}
+
+void Render_SetWarm(bool on)
+{
+    warm = on;
 }
 
 void Render_DrawWorld(const World *w, float time)

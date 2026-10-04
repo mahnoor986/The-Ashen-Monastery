@@ -18,6 +18,7 @@ Input Input_Read(void)
     in.mouse = GetMousePosition();
     in.dash = IsKeyPressed(KEY_LEFT_SHIFT) || IsKeyPressed(KEY_RIGHT_SHIFT);
     in.use = IsKeyDown(KEY_E);
+    in.usePressed = IsKeyPressed(KEY_E);
     in.pause = IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P);
     in.inventory = IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB);
     in.confirm = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);

@@ -21,6 +21,7 @@ void Render_UseEntityLight(Vector3 light);       /* a character standing in this
 void Render_SetEmissive(bool on);                /* glowing: no lighting, only fog */
 void Render_SetEmissiveMode(int mode);           /* 0 lit, 1 glowing, 2 glowing + no fog (eyes) */
 void Render_SetFlare(float amount);              /* 0..1: torches flare up (bell toll) */
+void Render_SetWarm(bool on);                    /* Sanctum: golden fog + ambient instead of red */
 void Render_SetFlash(Vector3 pos, Vector3 color, float radius);   /* lightning flash light */
 
 void Render_DrawWorld(const World *w, float time);    /* call inside BeginMode3D */

@@ -170,3 +170,17 @@ Decisions made while building, and things worth knowing.
 - New Game shows `STATE_INTRO` (4 lines on black, Enter/click/Esc skips), then wing 1.
   Continue skips the intro.
 - Death screen: "THE FIRE TAKES YOU" / "[ ENTER ] Rise from the ashes". Menu is red and black.
+
+## Task 6 - The Sanctum ending
+- `assets/wings/sanctum.txt`: 9x22 candle-lit hall, pillars on both sides, crimson carpet, `O` =
+  Master Oren, `a` = apprentices/monks (the first three `a` in reading order become Ilsa, Tobin,
+  Mira; the rest are freed monks facing the carpet). `World_Load(..., needExit)`: the Sanctum is
+  loaded with 0 chests and no exit required.
+- After the fifth bell's door: `Game_LoadSanctum` instead of the old victory screen. Warm mode:
+  amber fog + golden ambient (`Render_SetWarm`), post grade mode 1 (gold), no ash, no tolls,
+  slower/quieter ambience (`Audio_SetCalm`), no wand.
+- Friends speak in a text box within 2 units; at Oren "[E] Speak with Master Oren" opens his
+  4-line dialogue (side camera framing both), then fade to black -> "THE BELLS ARE SILENT" with
+  stats and a short credits list ("Created by: ___" for the student to fill in).
+- Autotest: `SanctumTest` (friend line, Oren prompt, dialogue, final screen) + `shots/sanctum.png`,
+  `dialogue.png`, `victory.png`.

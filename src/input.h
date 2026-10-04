@@ -12,6 +12,7 @@ typedef struct {
     bool swing;          /* left click pressed */
     bool dash;           /* shift pressed */
     bool use;            /* E held */
+    bool usePressed;     /* E pressed this frame */
     bool pause;          /* Esc or P pressed */
     bool inventory;      /* I or Tab pressed */
     bool confirm;        /* Enter pressed */

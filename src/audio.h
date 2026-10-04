@@ -27,5 +27,6 @@ void Audio_Init(bool enabled);              /* enabled = false: stay silent (aut
 void Audio_Shutdown(void);
 void Audio_Update(void);                    /* keeps the ambience stream fed; call every frame */
 void Audio_Play(SoundId id, float volume);  /* random variant + small random pitch change */
+void Audio_SetCalm(bool calm);              /* Sanctum: ambience slower and quieter */
 
 #endif

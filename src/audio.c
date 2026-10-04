@@ -167,6 +167,13 @@ void Audio_Shutdown(void)
     ready = false;
 }
 
+void Audio_SetCalm(bool calm)
+{
+    if (!ready || !hasAmbience) return;
+    SetMusicVolume(ambience, calm ? AMBIENCE_VOLUME * 0.45f : AMBIENCE_VOLUME);
+    SetMusicPitch(ambience, calm ? 0.75f : 1.0f);
+}
+
 void Audio_Update(void)
 {
     if (ready && hasAmbience) UpdateMusicStream(ambience);

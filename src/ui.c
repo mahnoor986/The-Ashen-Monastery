@@ -209,11 +209,20 @@ void UI_DrawHUD(const Game *g)
     /* wing name, top center */
     UI_TextCentered(true, g->world.name, SCREEN_W * 0.5f, 12, 40, Alpha(COL_BONE, 0.9f));
 
-    DrawTreasureList(g);
+    if (!g->sanctum) DrawTreasureList(g);
     DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 3.5f, (Color){ 0, 0, 0, 160 });           /* crosshair: red dot */
     DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 2.5f, (Color){ 230, 30, 30, 230 });
     DrawChestPrompt(g);
     DrawBossBar(g);
+    if (g->sanctum && g->state == STATE_PLAYING) {
+        if (g->talkNpc >= 0) {
+            const Npc *n = &g->npcs[g->talkNpc];
+            DrawRectangleRounded((Rectangle){ 190, SCREEN_H - 150, 900, 90 }, 0.15f, 6, (Color){ 20, 12, 6, 200 });
+            UI_Text(true, n->name, 220, SCREEN_H - 145, 34, COL_GOLD);
+            UI_Text(false, n->line, 220, SCREEN_H - 108, 30, COL_BONE);
+        }
+        if (g->nearOren) UI_TextCentered(false, "[E] Speak with Master Oren", SCREEN_W * 0.5f, SCREEN_H * 0.5f + 60, 32, COL_GOLD);
+    }
     DrawBanner(g);
 
     /* controls hint during the first seconds of wing 1 */
@@ -325,14 +334,37 @@ void UI_DrawDeath(const Game *g)
 void UI_DrawVictory(const Game *g)
 {
     int w, i, total = 0, found = 0;
+    static const char *const credits[] = {
+        "Created by: ___",
+        "Fonts: Pirata One, Crimson Text (SIL Open Font License, Google Fonts)",
+        "Sounds: Kenney RPG Audio + Impact Sounds (CC0);  qubodup, Fupi, JaggedStone (OpenGameArt, CC0)",
+        "Textures: Poly Haven (CC0)",
+        "Characters, enemies, particles, bells and lightning: made in code with raylib",
+    };
     for (w = 0; w < WING_COUNT; w++)
         for (i = 0; i < WINGS[w].chests; i++) { total++; if (g->found[w][i]) found++; }
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 4, 3, 6, 225 });
-    UI_TextCentered(true, "THE BELLS ARE SILENT", SCREEN_W * 0.5f, 150, 100, COL_GOLD);
-    UI_TextCentered(false, TextFormat("Ward Seals found: %d / %d", found, total), SCREEN_W * 0.5f, 370, 34, COL_BONE);
-    UI_TextCentered(false, TextFormat("Enemies defeated: %d", g->enemiesSlain), SCREEN_W * 0.5f, 415, 34, COL_BONE);
-    UI_TextCentered(false, TextFormat("Total time: %s", TimeText(g->playTime)), SCREEN_W * 0.5f, 460, 34, COL_BONE);
-    UI_TextCentered(false, "Press Enter to return to the menu", SCREEN_W * 0.5f, 560, 28, COL_FADED);
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 4, 3, 2, 240 });
+    UI_TextCentered(true, "THE BELLS ARE SILENT", SCREEN_W * 0.5f, 60, 96, COL_GOLD);
+    UI_TextCentered(false, TextFormat("Ward Seals found: %d / %d", found, total), SCREEN_W * 0.5f, 210, 32, COL_BONE);
+    UI_TextCentered(false, TextFormat("Enemies defeated: %d", g->enemiesSlain), SCREEN_W * 0.5f, 252, 32, COL_BONE);
+    UI_TextCentered(false, TextFormat("Total time: %s", TimeText(g->playTime)), SCREEN_W * 0.5f, 294, 32, COL_BONE);
+    for (i = 0; i < (int)(sizeof(credits) / sizeof(credits[0])); i++)
+        UI_TextCentered(false, credits[i], SCREEN_W * 0.5f, 390.0f + i * 40.0f, i == 0 ? 30 : 24,
+                        i == 0 ? COL_GOLD : COL_FADED);
+    UI_TextCentered(false, "Press Enter to return to the menu", SCREEN_W * 0.5f, 640, 28, COL_BONE);
+}
+
+/* Master Oren's dialogue box. */
+void UI_DrawDialogue(const Game *g)
+{
+    if (g->dialogLine < OREN_LINE_COUNT) {
+        DrawRectangleRounded((Rectangle){ 140, SCREEN_H - 200, 1000, 150 }, 0.12f, 6, (Color){ 18, 10, 4, 225 });
+        DrawRectangleLinesEx((Rectangle){ 140, SCREEN_H - 200, 1000, 150 }, 2, Alpha(COL_GOLD, 0.6f));
+        UI_Text(true, "Master Oren", 172, SCREEN_H - 192, 38, COL_GOLD);
+        UI_Text(false, OREN_LINES[g->dialogLine], 172, SCREEN_H - 145, 30, COL_BONE);
+        UI_Text(false, "[ ENTER ] continue", SCREEN_W - 340, SCREEN_H - 84, 22, COL_FADED);
+    }
+    if (g->endFade > 0.0f) DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Alpha(BLACK, g->endFade));
 }
 
 /* The story, one line at a time: white text fading in and out on black. */

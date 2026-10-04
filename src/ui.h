@@ -26,6 +26,7 @@ void UI_DrawInventory(const struct Game *g);
 void UI_DrawDeath(const struct Game *g);
 void UI_DrawVictory(const struct Game *g);
 void UI_DrawIntro(const struct Game *g);
+void UI_DrawDialogue(const struct Game *g);
 void UI_DrawFade(const struct Game *g);
 
 #endif
