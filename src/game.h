@@ -10,6 +10,7 @@
 #include "enemy.h"
 #include "input.h"
 #include "atmos.h"
+#include "relics.h"
 
 typedef enum {
     STATE_MENU = 0,       /* title screen over the slowly orbiting manor */
@@ -36,6 +37,7 @@ typedef struct {
 typedef struct {
     Vector3 pos, vel;
     float   life, maxLife, size;
+    float   gravity;      /* units/s^2 pulling down (negative = rises: smoke, embers) */
     Color   color;
 } Particle;
 
@@ -83,9 +85,21 @@ typedef struct Game {
     unsigned char discovered[WORLD_MAX_H][WORLD_MAX_W];
     float     revealTimer;
 
-    /* the serpent's cage in the Bell Tower (relics.c) */
+    /* Soul Relics, the serpent's cage and the serpent (relics.c) */
+    bool      relicDestroyed[WING_COUNT];
+    bool      relicActive;             /* this wing's relic is floating, waiting to be destroyed */
+    Vector3   relicPos;                /* the chest it rose from */
+    float     relicTime, relicShake;
+    int       relicHits;
     bool      cageExists, cageBroken;
     Vector3   cagePos;
+    int       cageHits;
+    float     cageHitTime, cageBurst;
+    bool      cageHint, shieldHint;
+    Serpent   serpent;
+    bool      showcase;                /* autotest: draw all five relics in a row */
+    Vector3   showcasePos;
+    float     showcaseYaw;
 
     /* presentation */
     Banner    banners[MAX_BANNERS];
@@ -148,6 +162,13 @@ int  Game_Tour(Game *g);                    /* --tour screenshots; returns the e
 void Game_Shutdown(Game *g);
 
 const char *Game_WingTitle(int wing);       /* "THE SECOND BELL" */
+
+/* Small services for relics.c */
+void Game_Shake(Game *g, float amount);
+void Game_Banner(Game *g, const char *title, const char *sub, Color color, float duration);
+void Game_Particles(Game *g, Vector3 pos, int count, Color color, float speed, float size, float life, float gravity);
+void Game_HurtPlayer(Game *g, Vector3 from);
+void Game_CheckWingComplete(Game *g);
 /* Title menu entries: fills labels + actions (MENU_*), returns the count. */
 enum { MENU_NEW = 0, MENU_CONTINUE, MENU_QUIT, MENU_CONTROLS, MENU_CREDITS };
 int Game_MenuOptions(const Game *g, int actions[6], const char *labels[6]);

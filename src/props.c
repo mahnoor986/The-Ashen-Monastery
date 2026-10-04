@@ -628,12 +628,43 @@ static void ThemeOssuary(World *w)
     }
 }
 
+/* The serpent's cage: a free 3x3 spot in the bell tower room, as far as possible from the Abbot. */
+static void PlaceCage(World *w, const Room *r, int roomId)
+{
+    Vector3 boss = { (r->x0 + r->x1 + 1) * 0.5f, 0, (r->z0 + r->z1 + 1) * 0.5f };
+    float best = -1.0f;
+    int i, x, z, bx = -1, bz = -1;
+    for (i = 0; i < w->spawnCount; i++) if (w->spawns[i].type == 'Q') boss = w->spawns[i].pos;
+    for (z = r->z0 + 2; z <= r->z1 - 2; z++)
+        for (x = r->x0 + 2; x <= r->x1 - 2; x++) {
+            float d = Vector3Distance((Vector3){ x + 0.5f, 0, z + 0.5f }, boss);
+            int i2, j2;
+            bool ok = w->roomId[z][x] == roomId;
+            for (j2 = -1; j2 <= 1 && ok; j2++)
+                for (i2 = -1; i2 <= 1 && ok; i2++)
+                    if (!IsOpen(w, x + i2, z + j2) || w->grid[z + j2][x + i2] == 'P' || World_IsSolid(w, x + i2, z + j2)) ok = false;
+            if (ok && d > best) { best = d; bx = x; bz = z; }
+        }
+    if (bx < 0 || w->colliderCount >= MAX_COLLIDERS) return;
+    w->hasCage = true;
+    w->cagePos = (Vector3){ bx + 0.5f, 0.0f, bz + 0.5f };
+    w->cageCollider = w->colliderCount;
+    w->colliders[w->colliderCount++] = (Collider){ bx - 0.9f, bz - 0.9f, bx + 1.9f, bz + 1.9f };   /* the game resets it */
+    for (z = bz - 2; z <= bz + 2; z++)
+        for (x = bx - 2; x <= bx + 2; x++)
+            if (InBounds(w, x, z)) lane[z][x] = 1;                   /* nothing else stands around it */
+}
+
 static void ThemeBellTower(World *w)
 {
     int big = BiggestRoom(w), i;
     const Room *r = &w->rooms[big];
     Frame f;
+    PlaceCage(w, r, big + 1);
+    reachCount = Reach(w, (bool[]){ true });
     f.o = (Vector3){ (r->x0 + r->x1 + 1) * 0.5f, 0, (r->z0 + r->z1 + 1) * 0.5f };
+    if (w->hasCage && Vector3Distance(f.o, w->cagePos) < 4.5f)       /* the bell never hangs over the cage */
+        f.o = Vector3Add(f.o, Vector3Scale(Vector3Normalize(Vector3Subtract(f.o, w->cagePos)), 4.5f - Vector3Distance(f.o, w->cagePos)));
     f.yaw = 0.0f;
     if (Add(w, P_BELL, f, (int)f.o.x, (int)f.o.z, World_CeilingAt(w, f.o.x, f.o.z), 0, 0, 0, 0)) used[(int)f.o.z][(int)f.o.x] = 0;
     for (i = 0; i < 3; i++) {
@@ -664,6 +695,8 @@ void Props_Place(World *w)
     int i;
     memset(used, 0, sizeof(used));
     memset(slotUsed, 0, sizeof(slotUsed));
+    w->hasCage = false;
+    w->cageCollider = -1;
     MarkLanes(w);
     reachCount = Reach(w, &ok);
     switch (w->theme) {

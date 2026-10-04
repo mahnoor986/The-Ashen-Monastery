@@ -56,6 +56,10 @@ typedef enum {
     MAT_WINDOW_LIT,        /* title castle: warm lit window, emissive (generated) */
     MAT_WINDOW_FLICKER,    /* the same, for windows that flicker */
     MAT_SNOW,              /* title cliff: snow (generated) */
+    MAT_LEATHER,           /* black leather (the Grimoire) */
+    MAT_RUBY,              /* blood-red faceted stone, emissive */
+    MAT_SILVER,            /* cool polished silver */
+    MAT_EMBER_GLOW,        /* swirling embers, emissive (the Chalice) */
     MAT_COUNT
 } MaterialId;
 

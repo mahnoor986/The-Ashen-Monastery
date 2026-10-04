@@ -70,7 +70,7 @@ void Enemy_ResetToSpawn(Enemy *e)
 
 bool Enemy_CanBeHurt(const Enemy *e)
 {
-    return e->alive && (e->type != EN_WRAITH || e->visible);
+    return e->alive && !e->immortal && (e->type != EN_WRAITH || e->visible);
 }
 
 bool Enemy_Hurt(Enemy *e, int damage, Vector3 from)
@@ -172,7 +172,12 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
         }
     }
 
-    /* ---- perception ---- */
+    /* ---- perception (a shielded Abbot just waits) ---- */
+    if (e->immortal) {
+        e->alerted = false;
+        e->yaw = e->spawnYaw + sinf(e->time * 0.5f) * 0.4f;
+        return;
+    }
     if (!e->alerted) {
         bool notice = false;
         if (dist < e->sight) {

@@ -23,6 +23,7 @@ typedef struct {
     bool      scared;         /* ghost: scare already played */
     bool      summoned;       /* queen: ghosts already summoned */
     bool      visible;        /* ghost: in the light, can be hurt */
+    bool      immortal;       /* the Red Abbot while the serpent lives: shielded, waits */
     float     windup;         /* < 0: not attacking; else seconds into the wind-up */
     AttackKind attack;        /* what the current wind-up will do */
     float     cooldown;       /* time until the next melee attack */

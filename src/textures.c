@@ -548,6 +548,7 @@ static Image GenPotion(void);
 static Image GenMirror(void);
 static Image GenWindowLit(void);
 static Image GenSnow(void);
+static Image GenSolid(Color base, float noise, int seed, float stripes);
 
 static void InitMaterials(void)
 {
@@ -569,6 +570,10 @@ static void InitMaterials(void)
     gen[MAT_WINDOW_LIT] = GenWindowLit();
     gen[MAT_WINDOW_FLICKER] = GenWindowLit();
     gen[MAT_SNOW] = GenSnow();
+    gen[MAT_LEATHER] = GenSolid((Color){ 30, 24, 22, 255 }, 0.25f, 77, 0.0f);
+    gen[MAT_RUBY] = GenSolid((Color){ 220, 24, 30, 255 }, 0.3f, 78, 0.5f);
+    gen[MAT_SILVER] = GenSolid((Color){ 176, 184, 198, 255 }, 0.12f, 79, 0.0f);
+    gen[MAT_EMBER_GLOW] = GenSolid((Color){ 255, 120, 30, 255 }, 0.45f, 80, 0.8f);
     for (i = 0; i < MAT_COUNT; i++) {
         if (gen[i].width != MAT_TEX_SIZE) ImageResizeNN(&gen[i], MAT_TEX_SIZE, MAT_TEX_SIZE);   /* chunky pixels */
         materials[i] = LoadTextureFromImage(gen[i]);
@@ -614,6 +619,20 @@ static Image GenWindowLit(void)
             float t = y / 63.0f;
             Color c = Noisy((Color){ (unsigned char)(200 + 50 * t), (unsigned char)(120 + 50 * t), (unsigned char)(40 + 30 * t), 255 }, x / 4, y / 4, 75, 0.15f);
             if (x < 5 || x > 58 || y < 5 || y > 58 || (x > 29 && x < 34) || (y > 27 && y < 32)) c = (Color){ 20, 14, 10, 255 };
+            Px(&img, x, y, c);
+        }
+    return img;
+}
+
+/* A plain noisy colour; `stripes` adds bright facets/streaks (gems, embers). */
+static Image GenSolid(Color base, float noise, int seed, float stripes)
+{
+    Image img = GenImageColor(64, 64, base);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            Color c = Noisy(base, x / 3, y / 3, seed, noise);
+            if (stripes > 0.0f && ((x + y * 2) % 13) < 2) c = Shade(c, 1.0f + stripes);
             Px(&img, x, y, c);
         }
     return img;

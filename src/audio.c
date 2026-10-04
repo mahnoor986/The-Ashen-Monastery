@@ -4,6 +4,7 @@
 #include <math.h>
 #include "raylib.h"
 #include "audio.h"
+#include "raymath.h"
 #include "config.h"
 
 #define MAX_VARIANTS 10
@@ -45,6 +46,8 @@ static const SoundRole ROLES[SND_COUNT] = {
     [SND_THUNDER]  = { { NULL }, 0.9f, 0.08f },     /* generated: see MakeThunder() */
     [SND_WHOOSH]   = { { NULL }, 0.9f, 0.0f },      /* generated: see MakeNoise() */
     [SND_WIND]     = { { NULL }, 0.5f, 0.0f },      /* generated: see MakeNoise() */
+    [SND_DRONE]    = { { NULL }, 0.6f, 0.0f },      /* generated: see MakeDrone() */
+    [SND_HISS]     = { { NULL }, 0.7f, 0.1f },      /* generated: see MakeHiss() */
 };
 
 /* SND_BOLT plays pitched up so the knife whoosh sounds like a magic hiss */
@@ -192,6 +195,59 @@ static Sound MakeNoise(bool whoosh)
     return s;
 }
 
+static Sound FromSamples(short *data, int n, int rate)
+{
+    Wave wave;
+    Sound s;
+    wave.frameCount = (unsigned int)n;
+    wave.sampleRate = (unsigned int)rate;
+    wave.sampleSize = 16;
+    wave.channels = 1;
+    wave.data = data;
+    s = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    return s;
+}
+
+/* Relic drone: two detuned low tones beating slowly, plus a breathy whisper. */
+static Sound MakeDrone(void)
+{
+    const int rate = 22050, n = 22050 * 4;
+    short *data = MemAlloc((unsigned int)(n * sizeof(short)));
+    unsigned int seed = 555u;
+    float lp = 0.0f;
+    int i;
+    for (i = 0; i < n; i++) {
+        float t = (float)i / rate, noise, v, env = fminf(1.0f, fminf(t, 4.0f - t) * 3.0f);
+        seed = seed * 1664525u + 1013904223u;
+        noise = ((seed >> 9) & 0xffff) / 32768.0f - 1.0f;
+        lp += (noise - lp) * 0.08f;
+        v = 0.35f * sinf(2.0f * PI * 55.0f * t) + 0.3f * sinf(2.0f * PI * 56.3f * t) + 0.15f * sinf(2.0f * PI * 110.5f * t)
+          + lp * 1.6f * (0.5f + 0.5f * sinf(t * 5.0f));
+        data[i] = (short)(Clamp(v * env, -1.0f, 1.0f) * 24000.0f);
+    }
+    return FromSamples(data, n, rate);
+}
+
+/* Serpent hiss: bright noise with a quick attack and a long fade. */
+static Sound MakeHiss(void)
+{
+    const int rate = 22050, n = (int)(22050 * 0.9f);
+    short *data = MemAlloc((unsigned int)(n * sizeof(short)));
+    unsigned int seed = 4711u;
+    float lp = 0.0f;
+    int i;
+    for (i = 0; i < n; i++) {
+        float t = (float)i / rate, noise, v;
+        seed = seed * 1664525u + 1013904223u;
+        noise = ((seed >> 9) & 0xffff) / 32768.0f - 1.0f;
+        lp += (noise - lp) * 0.3f;
+        v = (noise - lp) * fminf(1.0f, t * 30.0f) * expf(-t * 2.5f) * 1.4f;
+        data[i] = (short)(Clamp(v, -1.0f, 1.0f) * 26000.0f);
+    }
+    return FromSamples(data, n, rate);
+}
+
 void Audio_Loop(SoundId id, float volume)
 {
     if (!ready || counts[id] == 0 || IsSoundPlaying(sounds[id][0])) return;
@@ -236,6 +292,10 @@ void Audio_Init(bool enabled)
     if (IsSoundValid(sounds[SND_WHOOSH][0])) counts[SND_WHOOSH] = 1;
     sounds[SND_WIND][0] = MakeNoise(false);
     if (IsSoundValid(sounds[SND_WIND][0])) counts[SND_WIND] = 1;
+    sounds[SND_DRONE][0] = MakeDrone();
+    if (IsSoundValid(sounds[SND_DRONE][0])) counts[SND_DRONE] = 1;
+    sounds[SND_HISS][0] = MakeHiss();
+    if (IsSoundValid(sounds[SND_HISS][0])) counts[SND_HISS] = 1;
 
     if (FileExists(AMBIENCE_FILE)) {
         ambience = LoadMusicStream(AMBIENCE_FILE);

@@ -23,6 +23,8 @@ typedef enum {
     SND_THUNDER,     /* thunder after lightning (generated in code) */
     SND_WHOOSH,      /* deep whoosh when a menu choice is made (generated in code) */
     SND_WIND,        /* howling wind on the title screen, re-started while it should play (generated) */
+    SND_DRONE,       /* a Soul Relic's low whispering drone (generated) */
+    SND_HISS,        /* the Ember Serpent hisses (generated) */
     SND_COUNT
 } SoundId;
 

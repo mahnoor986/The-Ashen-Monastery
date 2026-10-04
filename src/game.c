@@ -14,6 +14,7 @@
 #include "ui.h"
 #include "minimap.h"
 #include "title.h"
+#include "relics.h"
 #include "rlgl.h"
 #include "raymath.h"
 
@@ -76,10 +77,15 @@ static void PushBanner(Game *g, const char *title, const char *sub, Color color,
     b->duration = duration;
 }
 
+static void PushBanner(Game *g, const char *title, const char *sub, Color color, float duration);
+void Game_Banner(Game *g, const char *title, const char *sub, Color color, float duration) { PushBanner(g, title, sub, color, duration); }
+
 static void Shake(Game *g, float amount)
 {
     if (amount > g->shake) g->shake = amount;
 }
+
+void Game_Shake(Game *g, float amount) { Shake(g, amount); }
 
 static void SetMouseCaptured(Game *g, bool on)
 {
@@ -103,8 +109,20 @@ static void SpawnParticles(Game *g, Vector3 pos, int count, Color color, float s
         p->life = p->maxLife = life * (0.6f + 0.4f * up);
         p->size = size;
         p->color = color;
+        p->gravity = 6.0f;
         n++;
     }
+}
+
+void Game_Particles(Game *g, Vector3 pos, int count, Color color, float speed, float size, float life, float gravity)
+{
+    int i, n = 0;
+    SpawnParticles(g, pos, count, color, speed, size, life);
+    for (i = MAX_PARTICLES - 1; i >= 0 && n < count; i--)          /* the ones just spawned */
+        if (g->particles[i].life > 0.0f && g->particles[i].life >= g->particles[i].maxLife - 0.0001f && g->particles[i].gravity == 6.0f) {
+            g->particles[i].gravity = gravity;
+            n++;
+        }
 }
 
 static void UpdateParticles(Game *g, float dt)
@@ -114,7 +132,7 @@ static void UpdateParticles(Game *g, float dt)
         Particle *p = &g->particles[i];
         if (p->life <= 0.0f) continue;
         p->life -= dt;
-        p->vel.y -= 6.0f * dt;
+        p->vel.y -= p->gravity * dt;
         p->pos = Vector3Add(p->pos, Vector3Scale(p->vel, dt));
         if (p->pos.y < 0.03f) { p->pos.y = 0.03f; p->vel = Vector3Scale(p->vel, 0.4f); p->vel.y = 0.0f; }
     }
@@ -222,6 +240,8 @@ bool Game_LoadWing(Game *g, int wing)
     }
     memset(g->bolts, 0, sizeof(g->bolts));
     memset(g->particles, 0, sizeof(g->particles));
+    g->relicDestroyed[wing] = false;
+    Relics_OnWingLoaded(g);
 
     /* chests */
     memset(g->chestOpened, 0, sizeof(g->chestOpened));
@@ -249,7 +269,7 @@ bool Game_LoadWing(Game *g, int wing)
 
     g->bannerCount = 0;
     PushBanner(g, TextFormat("%s \xE2\x80\x94 %s", Game_WingTitle(wing), g->world.name),
-               wing == 0 ? "Find the Ward Seal in every reliquary to break the bell" : "", COL_BONE, BANNER_TIME + 1.0f);
+               wing == 0 ? "Open every chest - the last one hides a Soul Relic" : "", COL_BONE, BANNER_TIME + 1.0f);
     g->fade = 1.0f;
     g->leaving = false;
     g->hurtFlash = 0.0f;
@@ -259,7 +279,10 @@ bool Game_LoadWing(Game *g, int wing)
 
 void Game_NewGame(Game *g, int wing)
 {
+    int i;
     memset(g->found, 0, sizeof(g->found));
+    memset(g->relicDestroyed, 0, sizeof(g->relicDestroyed));
+    for (i = 0; i < wing && i < WING_COUNT; i++) g->relicDestroyed[i] = true;   /* earlier wings are done */
     g->enemiesSlain = 0;
     g->playTime = 0.0f;
     g->ghostHintShown = false;
@@ -288,6 +311,9 @@ bool Game_LoadSanctum(Game *g)
 
     if (g->worldLoaded) World_Unload(&g->world);
     g->worldLoaded = false;
+    g->relicActive = false;
+    g->cageExists = false;
+    g->serpent.exists = false;
     if (!World_Load(&g->world, SANCTUM_FILE, 0, false)) return false;
     g->world.theme = WING_COUNT;
     World_BuildMeshes(&g->world);
@@ -353,24 +379,20 @@ static void Victory(Game *g)
     SetMouseCaptured(g, false);
 }
 
-/* All chests open (and, in the last wing, the Queen dead) -> the exit door opens. */
+/* The exit opens when every chest is open and this wing's Soul Relic is destroyed (its bell
+ * shatters in relics.c); in the Bell Tower the serpent and the Red Abbot must be dead too. */
 static void CheckWingComplete(Game *g)
 {
     bool lastWing = g->wing == WING_COUNT - 1;
-    if (g->world.exitOpen || g->chestsOpened < g->world.chestCount) return;
-    if (lastWing && !g->abbotDead) {
-        PushBanner(g, "The Red Abbot still guards the last bell...", "Destroy him to break it", COL_BLOOD, BANNER_TIME);
-        return;
-    }
-    /* every seal is broken: the wing's cursed bell shatters and the way up opens */
+    if (g->world.exitOpen || g->sanctum || g->chestsOpened < g->world.chestCount || !g->relicDestroyed[g->wing]) return;
+    if (lastWing && ((g->serpent.exists && g->serpent.alive) || !g->abbotDead)) return;
     g->world.exitOpen = true;
-    PushBanner(g, TextFormat("THE %s BELL SHATTERS", ORDINAL[g->wing]),
-               lastWing ? "The way to the Sanctum is open" : "The way forward is open...", COL_BLOOD, BANNER_TIME + 0.8f);
-    Audio_Play(SND_BELL_BREAK, 1.0f);
+    if (lastWing) PushBanner(g, "THE WAY TO THE SANCTUM IS OPEN", "Your friends are waiting at the summit", COL_GOLD, BANNER_TIME + 1.0f);
     Audio_Play(SND_DOOR, 0.8f);
-    Shake(g, 1.0f);
-    g->redPulse = 1.0f;
+    Shake(g, 0.6f);
 }
+
+void Game_CheckWingComplete(Game *g) { CheckWingComplete(g); }
 
 static void UpdateExit(Game *g, float dt)
 {
@@ -411,11 +433,15 @@ static void OpenChest(Game *g, int i)
     g->checkpointYaw = g->player.yaw;
     g->useHold = 0.0f;
     g->useChest = -1;
-    PushBanner(g, TextFormat("Ward Seal found: %s", name), "+1 heart   -   checkpoint saved", COL_GOLD, BANNER_TIME);
     Audio_Play(SND_TREASURE, 1.0f);
     Shake(g, SHAKE_CHEST);
-    c.y = 0.6f;
-    SpawnParticles(g, c, 40, COL_GOLD, 2.2f, 0.06f, 1.4f);
+    if (g->chestsOpened >= g->world.chestCount && !g->relicDestroyed[g->wing]) {
+        Relics_Rise(g, c);                    /* the last chest holds the wing's Soul Relic */
+    } else {
+        PushBanner(g, TextFormat("Ward Seal found: %s", name), "+1 heart   -   checkpoint saved", COL_GOLD, BANNER_TIME);
+        c.y = 0.6f;
+        SpawnParticles(g, c, 40, COL_GOLD, 2.2f, 0.06f, 1.4f);
+    }
     CheckWingComplete(g);
 }
 
@@ -467,7 +493,17 @@ static void Respawn(Game *g)
     g->player.god = god;
     g->player.invuln = RESPAWN_INVULN;
     for (i = 0; i < g->enemyCount; i++)
-        if (g->enemies[i].alive) Enemy_ResetToSpawn(&g->enemies[i]);
+        if (g->enemies[i].alive) {
+            Enemy_ResetToSpawn(&g->enemies[i]);
+            if (g->enemies[i].type == EN_ABBOT) g->enemies[i].hp = g->enemies[i].maxHp;    /* a living boss heals */
+        }
+    if (g->serpent.exists && g->serpent.freed && g->serpent.alive) {
+        int k;
+        g->serpent.hp = SERPENT_HP;
+        g->serpent.rear = -1.0f;
+        g->serpent.lunge = 0.0f;
+        for (k = 0; k < SERPENT_SEGMENTS; k++) g->serpent.seg[k] = (Vector3){ g->cagePos.x + k * 0.1f, 0.4f, g->cagePos.z };
+    }
     memset(g->bolts, 0, sizeof(g->bolts));
     CameraRig_Init(&g->rig, yaw);
     CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
@@ -476,6 +512,9 @@ static void Respawn(Game *g)
     g->hurtFlash = 0.0f;
     SetMouseCaptured(g, true);
 }
+
+static void HurtPlayer(Game *g, Vector3 from);
+void Game_HurtPlayer(Game *g, Vector3 from) { HurtPlayer(g, from); }
 
 static void HurtPlayer(Game *g, Vector3 from)
 {
@@ -529,20 +568,28 @@ static void CastLightning(Game *g, const Input *in)
     Vector3 origin, aim, dir, hit;
     Vector3 eye = { g->player.pos.x, 1.5f, g->player.pos.z };
 
+    Vector3 special;
+    int kind;
     if (!in->swing || !Player_CanSwing(&g->player)) return;
-    for (i = 0; i < g->enemyCount; i++) {
+    kind = Relics_AimTarget(g, eye, &special);
+    for (i = 0; i < g->enemyCount && kind != 1; i++) {        /* a floating relic always comes first */
         const Enemy *e = &g->enemies[i];
         float d;
         if (!Enemy_CanBeHurt(e)) continue;
         d = FlatDist(g->player.pos, e->pos);
         if (d < AIM_ASSIST_RANGE && d < bestD && World_LineOfSight(&g->world, eye, EnemyChest(e))) { bestD = d; best = i; }
     }
+    if (kind != 0 && (best < 0 || kind == 1 || FlatDist(g->player.pos, special) < bestD)) best = -1;
+    else kind = 0;
     if (best >= 0) yaw = YawTo(g->player.pos, g->enemies[best].pos);
+    else if (kind != 0) yaw = YawTo(g->player.pos, special);
     Player_StartSwing(&g->player, yaw);
     origin = Player_WandTip(&g->player);
 
     if (best >= 0) {
         aim = EnemyChest(&g->enemies[best]);
+    } else if (kind != 0) {
+        aim = special;
     } else {
         /* follow the crosshair: the first wall along the camera's view (or max range) */
         Vector3 fwd = Vector3Normalize(Vector3Subtract(g->rig.cam.target, g->rig.cam.position));
@@ -561,6 +608,7 @@ static void CastLightning(Game *g, const Input *in)
     for (t = 0.0f; t < WAND_RANGE && hitEnemy < 0; t += 0.1f) {
         Vector3 p = Vector3Add(origin, Vector3Scale(dir, t));
         if (World_IsWallCell(&g->world, (int)floorf(p.x), (int)floorf(p.z)) || p.y < 0.0f || p.y > World_CeilingAt(&g->world, p.x, p.z)) { hit = p; break; }
+        if (Relics_RayHit(g, p)) { hit = p; break; }          /* relic, cage, serpent or the Abbot's shield */
         for (i = 0; i < MAX_BOLTS; i++) {
             Bolt *b = &g->bolts[i];
             if (b->active && Vector3Distance(b->pos, p) < 0.4f) {
@@ -644,6 +692,8 @@ static void CompleteWing(Game *g)
     int i;
     for (i = 0; i < g->world.chestCount; i++)
         if (!g->chestOpened[i]) { g->chestOpened[i] = true; g->found[g->wing][i] = true; g->chestsOpened++; }
+    for (i = 0; i < g->wing; i++) g->relicDestroyed[i] = true;
+    Relics_Complete(g);
     for (i = 0; i < g->enemyCount; i++)
         if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT) { g->enemies[i].alive = false; g->abbotDead = true; }
     g->abbotDead = g->abbotDead || g->wing == WING_COUNT - 1;
@@ -733,6 +783,7 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     }
     CastLightning(g, in);
     UpdateEnemies(g, dt);
+    Relics_Update(g, dt);
     if (g->state != STATE_PLAYING) return;          /* died */
     UpdateChests(g, in, dt);
     UpdateExit(g, dt);
@@ -904,6 +955,7 @@ void Game_Init(Game *g, int startWing, bool directStart, bool autotest)
     Post_Init();
     Character_Init();
     Title_Init();
+    Relics_Init();
     if (Render_HasShader()) Character_SetShader(Render_Shader());
     UI_Init();
     Audio_Init(!autotest);
@@ -924,6 +976,7 @@ void Game_Shutdown(Game *g)
     Audio_Shutdown();
     UI_Shutdown();
     Title_Shutdown();
+    Relics_Shutdown();
     Character_Shutdown();
     Post_Shutdown();
     Render_Shutdown();
@@ -1027,6 +1080,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     Render_SetFlare(g->torchFlare);
     Render_SetLightning(g->sanctum ? 0.0f : LightningFlash(g->lightningAge));
     BossLight(g);
+    Relics_Lights(g);
     Render_BeginFrame(g->sanctum ? &SANCTUM : &WINGS[g->wing], &g->world, cam, lightAt, g->time);
     if (g->beamTime > 0.0f) {
         float f = g->beamTime / BEAM_TIME;
@@ -1056,6 +1110,13 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
         }
     }
     Bolts_Draw(g->bolts);
+    Relics_Draw(g);
+    if (g->showcase) {
+        int k;
+        Vector3 right = { cosf(g->showcaseYaw), 0.0f, -sinf(g->showcaseYaw) };
+        for (k = 0; k < WING_COUNT; k++)
+            Relics_DrawRelic(k, Vector3Add(g->showcasePos, Vector3Scale(right, (k - 2) * 0.95f)), g->time + k, k == WING_COUNT - 1 ? 2 : 0);
+    }
     DrawBeam(g);
     if (!g->sanctum) Atmos_Draw(&g->atmos, g->wing == WING_COUNT - 1);
     for (i = 0; i < g->npcCount; i++) {
@@ -1077,6 +1138,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 
     /* transparent pass: cobwebs, then ghosts far to near, without writing depth */
     Render_DrawWorldTransparent(&g->world);
+    Relics_DrawTransparent(g);
     Render_DrawFlames(&g->world, g->time);
     if (!g->sanctum) Render_DrawWindowShafts(&g->world, g->time);
     qsort(ghosts, (size_t)nGhosts, sizeof(ghosts[0]), CompareFar);
@@ -1189,7 +1251,34 @@ static int Check(bool ok, const char *what)
     return ok ? 0 : 1;
 }
 
-/* Plays wing 1 with scripted input: chests, door, wing exit, sword, death + checkpoint. */
+/* Cast Red Lightning n times (aim assist picks the target), waiting out the cooldown each time. */
+static void CastTimes(Game *g, int n)
+{
+    Input none = { 0 }, cast = { 0 };
+    int k;
+    cast.swing = true;
+    for (k = 0; k < n; k++) {
+        Frame(g, &cast, 1.0f / 60.0f, false);
+        Simulate(g, &none, WAND_COOLDOWN + 0.05f);
+    }
+}
+
+/* Put the player `dist` units from point p on a free spot (trying several directions). */
+static void StandNear(Game *g, Vector3 p, float dist)
+{
+    int k;
+    for (k = 0; k < 16; k++) {
+        float a = k * PI / 8.0f, r = dist * (k < 8 ? 1.0f : 0.6f);
+        Vector3 q = { p.x + sinf(a) * r, 0.0f, p.z + cosf(a) * r };
+        if (World_BoxBlocked(&g->world, q.x, q.z, PLAYER_SIZE)) continue;
+        if (!World_LineOfSight(&g->world, (Vector3){ q.x, 1.5f, q.z }, (Vector3){ p.x, 1.2f, p.z })) continue;
+        g->player.pos = q;
+        g->player.yaw = g->rig.yaw = YawTo(q, p);
+        return;
+    }
+}
+
+/* Plays wing 1 with scripted input: chests, relic, door, wing exit, wand, death + checkpoint. */
 static int FlowTest(Game *g)
 {
     Input none = { 0 }, in;
@@ -1206,7 +1295,11 @@ static int FlowTest(Game *g)
         Simulate(g, &in, CHEST_HOLD_TIME + 0.2f);
         fails += Check(g->chestOpened[i], TextFormat("hold E opens chest %d (%s)", i + 1, TREASURES[0][i]));
     }
-    fails += Check(g->world.exitOpen, "exit door opens after the last chest");
+    fails += Check(g->relicActive && !g->world.exitOpen, "the last chest releases the Soul Relic (exit still shut)");
+    Simulate(g, &none, 1.5f);                             /* let it rise */
+    CastTimes(g, RELIC_HITS);
+    fails += Check(g->relicDestroyed[0] && !g->relicActive, "three Red Lightning hits shatter the Ashbound Grimoire");
+    fails += Check(g->world.exitOpen, "the first bell shatters and the exit opens");
     Simulate(g, &none, DOOR_OPEN_TIME + 0.2f);
     fails += Check(g->world.doorSlide >= 1.0f, "both door leaves swing open");
 
@@ -1303,46 +1396,139 @@ static void LightningShot(Game *g)
     g->player.god = false;
 }
 
-/* Wing 5: the gate needs every chest AND the Queen; she summons ghosts at half health. */
-static int QueenTest(Game *g)
+/* Wing 5: chests -> the Thorned Crown -> the cage seal breaks -> break the cage -> the Ember
+ * Serpent -> the Abbot loses his shield -> he summons wraiths at half health -> exit -> Sanctum. */
+static int BellTowerTest(Game *g)
 {
     Input none = { 0 }, in;
-    Enemy *queen = NULL;
+    Enemy *abbot = NULL;
     int fails = 0, i, before, safety;
 
-    printf("\nabbot test (wing 5):\n");
+    printf("\nbell tower test (wing 5):\n");
     Game_NewGame(g, WING_COUNT - 1);
     g->player.god = true;
-    for (i = 0; i < g->enemyCount; i++) if (g->enemies[i].type == EN_ABBOT) queen = &g->enemies[i];
-    fails += Check(queen != NULL, "the Red Abbot is in the bell tower");
-    if (!queen) return fails;
+    for (i = 0; i < g->enemyCount; i++) {
+        if (g->enemies[i].type == EN_ABBOT) abbot = &g->enemies[i];
+        else g->enemies[i].alive = false;              /* only the boss fights matter here */
+    }
+    fails += Check(abbot != NULL && abbot->immortal, "the Red Abbot waits in the bell tower, shielded (immortal)");
+    fails += Check(g->cageExists && g->serpent.exists && !g->cageBroken, "the Ember Serpent lies in its cage");
+    if (!abbot || !g->cageExists) return fails;
     for (i = 0; i < g->world.chestCount; i++) OpenChest(g, i);
+    fails += Check(g->relicActive && !g->world.exitOpen, "the last chest releases the Thorned Crown");
+
+    /* the cage is sealed while a relic remains */
+    StandNear(g, g->cagePos, 4.0f);
+    CastTimes(g, 1);
+    fails += Check(g->cageHits == 0, "the sealed cage shrugs off the lightning");
+
+    StandNear(g, g->relicPos, 2.0f);
+    Simulate(g, &none, 1.5f);
+    CastTimes(g, RELIC_HITS);
+    fails += Check(g->relicDestroyed[WING_COUNT - 1], "three hits shatter the Thorned Crown (the cage seal breaks)");
+
+    StandNear(g, g->cagePos, 4.0f);
+    CastTimes(g, CAGE_HITS);
+    fails += Check(g->cageBroken && g->serpent.freed, "six hits break the cage: the serpent is free");
+
+    for (safety = 0; safety < 80 && g->serpent.alive; safety++) {
+        StandNear(g, g->serpent.seg[0], 3.5f);
+        CastTimes(g, 1);
+    }
+    fails += Check(!g->serpent.alive && !abbot->immortal, "the serpent dies and the Abbot becomes mortal");
     fails += Check(!g->world.exitOpen, "exit stays shut while the Abbot lives");
 
-    /* stand next to her and fight */
+    /* stand next to him and fight */
     before = g->enemyCount;
-    g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
+    g->player.pos = Vector3Add(abbot->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
     in = none;
     in.swing = true;
-    for (safety = 0; safety < 200 && queen->alive; safety++) {
+    for (safety = 0; safety < 200 && abbot->alive; safety++) {
         Frame(g, &in, 1.0f / 60.0f, false);
         Simulate(g, &none, WAND_COOLDOWN);
-        if (queen->alive) {             /* keep the fight in one place */
-            g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
-            queen->visible = true;
+        if (abbot->alive) {             /* keep the fight in one place */
+            g->player.pos = Vector3Add(abbot->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
+            abbot->visible = true;
         }
-        if (safety == 0) fails += Check(g->abbotAlerted, "the boss bar appears once he is alerted");
+        if (safety == 0) fails += Check(g->abbotAlerted, "the boss bar shows once he is mortal");
     }
     fails += Check(g->enemyCount == before + 2, "at half health he summons two Choir Wraiths");
-    fails += Check(!queen->alive && g->abbotDead, "the Abbot can be destroyed");
-    fails += Check(g->world.exitOpen, "the exit opens");
+    fails += Check(!abbot->alive && g->abbotDead, "the Abbot can be destroyed");
+    fails += Check(g->world.exitOpen, "the way to the Sanctum opens");
     StandNextTo(g, g->world.exits[0]);
     in = none;
     in.move.y = 1.0f;
     for (i = 0; i < 400 && g->state == STATE_PLAYING; i++) Frame(g, &in, 1.0f / 60.0f, false);
-    fails += Check(g->state == STATE_PLAYING && g->sanctum, "breaking the fifth bell leads to the Sanctum");
+    fails += Check(g->state == STATE_PLAYING && g->sanctum, "walking through leads to the Sanctum");
     g->player.god = false;
     return fails;
+}
+
+/* One frame from a free camera, without Kael or the HUD (close-up screenshots). */
+static void FreeCameraShot(Game *g, Vector3 from, Vector3 to, const char *path)
+{
+    Camera3D cam = { 0 };
+    cam.position = from;
+    cam.target = to;
+    cam.up = (Vector3){ 0, 1, 0 };
+    cam.fovy = 55.0f;
+    cam.projection = CAMERA_PERSPECTIVE;
+    Post_BeginScene();
+    ClearBackground(FogColor(g));
+    DrawScene(g, cam, false);
+    Post_EndScene();
+    Screen_Begin();
+    Post_Draw(g->time, 0, 0.0f);
+    Screen_End();
+    Screen_Save(path);
+}
+
+/* All five Soul Relics floating in a row (shots/relics.png) and the caged serpent (shots/cage.png). */
+static void RelicShots(Game *g)
+{
+    Input none = { 0 };
+    float yaw;
+    Vector3 fwd;
+    int f;
+    if (Game_LoadWing(g, 0)) {
+        g->state = STATE_PLAYING;
+        g->player.god = true;
+        g->enemyCount = 0;
+        yaw = g->world.startYaw;
+        fwd = (Vector3){ sinf(yaw), 0.0f, cosf(yaw) };
+        g->showcase = true;
+        g->showcasePos = Vector3Add(g->player.pos, Vector3Add(Vector3Scale(fwd, 2.6f), (Vector3){ 0, 1.4f, 0 }));
+        g->showcaseYaw = yaw;
+        for (f = 0; f < 30; f++) Frame(g, &none, 1.0f / 60.0f, false);
+        FreeCameraShot(g, Vector3Add(g->showcasePos, Vector3Add(Vector3Scale(fwd, -2.6f), (Vector3){ 0, 0.25f, 0 })),
+                       g->showcasePos, "shots/relics.png");
+        g->showcase = false;
+    }
+    if (Game_LoadWing(g, WING_COUNT - 1) && g->cageExists) {
+        g->state = STATE_PLAYING;
+        g->player.god = true;
+        StandNear(g, g->cagePos, 3.0f);                    /* close enough that the serpent rises */
+        g->bannerCount = 0;
+        for (f = 0; f < 60; f++) Frame(g, &none, 1.0f / 60.0f, false);
+        {
+            /* a viewpoint 5.5 away with a clear view (no wall or pillar in between) */
+            Vector3 best = { g->cagePos.x + 5.5f, 2.6f, g->cagePos.z };
+            int k;
+            for (k = 0; k < 16; k++) {
+                float a = k * PI / 8.0f;
+                Vector3 c = { g->cagePos.x + sinf(a) * 5.5f, 2.6f, g->cagePos.z + cosf(a) * 5.5f };
+                if (World_IsWallCell(&g->world, (int)floorf(c.x), (int)floorf(c.z)) ||
+                    !World_LineOfSight(&g->world, c, (Vector3){ g->cagePos.x, 1.3f, g->cagePos.z })) continue;
+                best = c;
+                break;
+            }
+            g->player.pos = (Vector3){ best.x, 0.0f, best.z };          /* the serpent looks at the viewer */
+            for (f = 0; f < 40; f++) Frame(g, &none, 1.0f / 60.0f, false);
+            g->player.pos = (Vector3){ -100.0f, 0.0f, -100.0f };
+            FreeCameraShot(g, best, Vector3Add(g->cagePos, (Vector3){ 0, 1.3f, 0 }), "shots/cage.png");
+        }
+    }
+    g->player.god = false;
 }
 
 /* The Sanctum: render it, talk to a friend, then Master Oren's dialogue -> final screen. */
@@ -1397,6 +1583,7 @@ static void BossShot(Game *g)
         if (e->type != EN_ABBOT) { e->alive = false; continue; }
         g->player.pos = Vector3Add(e->pos, (Vector3){ 0.0f, 0.0f, 5.0f });
         g->player.yaw = g->rig.yaw = PI;
+        e->immortal = false;
         e->alerted = true;
         e->hp = e->maxHp * 2 / 3;
         e->ringTimer = 100.0f;
@@ -1687,9 +1874,10 @@ int Game_Autotest(Game *g)
         failures += FlowTest(g);
         LightningShot(g);
         failures += BalanceTest(g);
-        failures += QueenTest(g);
+        failures += BellTowerTest(g);
         failures += SanctumTest(g);
         BossShot(g);
+        RelicShots(g);
         DoorShot(g);
         WindowShot(g, 1);
     } else {

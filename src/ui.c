@@ -199,17 +199,64 @@ static void DrawChestPrompt(const Game *g)
 
 static void DrawBossBar(const Game *g)
 {
-    const Enemy *queen = NULL;
+    const Enemy *abbot = NULL;
     int i;
-    float w = 640.0f, x = (SCREEN_W - w) * 0.5f, y = SCREEN_H - 64.0f;
-    if (!g->abbotAlerted) return;
+    float w = 640.0f, x = (SCREEN_W - w) * 0.5f - 120.0f, y = SCREEN_H - 64.0f, dx, dz;
     for (i = 0; i < g->enemyCount; i++)
-        if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT) queen = &g->enemies[i];
-    if (!queen) return;
-    UI_TextCentered(true, "THE RED ABBOT", SCREEN_W * 0.5f, y - 44, 38, COL_BLOOD);
+        if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT) abbot = &g->enemies[i];
+    if (!abbot) return;
+    dx = abbot->pos.x - g->player.pos.x;
+    dz = abbot->pos.z - g->player.pos.z;
+    if (!g->abbotAlerted && !(abbot->immortal && dx * dx + dz * dz < 18.0f * 18.0f)) return;
+    UI_TextCentered(true, "THE RED ABBOT", x + w * 0.5f, y - 44, 38, COL_BLOOD);
     DrawRectangle((int)x - 3, (int)y - 3, (int)w + 6, 22, (Color){ 0, 0, 0, 200 });
-    DrawRectangle((int)x, (int)y, (int)(w * queen->hp / (float)queen->maxHp), 16, COL_BLOOD);
+    if (abbot->immortal) {
+        DrawRectangle((int)x, (int)y, (int)w, 16, (Color){ 60, 50, 50, 255 });
+        UI_TextCentered(false, "IMMORTAL", x + w * 0.5f, y - 4, 22, (Color){ 255, 90, 70, 255 });
+    } else {
+        DrawRectangle((int)x, (int)y, (int)(w * abbot->hp / (float)abbot->maxHp), 16, COL_BLOOD);
+    }
     DrawRectangleLinesEx((Rectangle){ x - 3, y - 3, w + 6, 22 }, 2, COL_GOLD);
+}
+
+/* Little silhouettes of the five relics and the serpent: dark while they exist, cracked with a
+ * gold outline once destroyed. */
+static void RelicIcon(int kind, float x, float y, bool done)
+{
+    Color fill = done ? (Color){ 70, 52, 26, 255 } : (Color){ 22, 20, 24, 235 };
+    Color line = done ? COL_GOLD : (Color){ 90, 84, 80, 255 };
+    DrawCircle((int)x, (int)y, 17, (Color){ 0, 0, 0, 150 });
+    switch (kind) {
+    case 0: DrawRectangle((int)x - 9, (int)y - 11, 18, 22, fill); DrawRectangleLines((int)x - 9, (int)y - 11, 18, 22, line); break;
+    case 1: DrawRing((Vector2){ x, y + 2 }, 6, 10, 0, 360, 16, fill); DrawRingLines((Vector2){ x, y + 2 }, 6, 10, 0, 360, 16, line);
+            DrawCircle((int)x, (int)y - 9, 4, done ? fill : (Color){ 120, 20, 24, 255 }); break;
+    case 2: DrawEllipse((int)x, (int)y + 2, 8, 11, fill); DrawEllipseLines((int)x, (int)y + 2, 8, 11, line);
+            DrawLine((int)x, (int)y - 9, (int)x, (int)y - 14, line); break;
+    case 3: DrawTriangle((Vector2){ x - 10, y - 10 }, (Vector2){ x, y + 2 }, (Vector2){ x + 10, y - 10 }, fill);
+            DrawRectangle((int)x - 2, (int)y, 4, 8, fill); DrawRectangle((int)x - 7, (int)y + 8, 14, 3, fill);
+            DrawTriangleLines((Vector2){ x - 10, y - 10 }, (Vector2){ x, y + 2 }, (Vector2){ x + 10, y - 10 }, line); break;
+    case 4: DrawRectangle((int)x - 11, (int)y, 22, 7, fill);
+            DrawTriangle((Vector2){ x - 11, y }, (Vector2){ x - 6, y }, (Vector2){ x - 9, y - 10 }, fill);
+            DrawTriangle((Vector2){ x - 3, y }, (Vector2){ x + 3, y }, (Vector2){ x, y - 13 }, fill);
+            DrawTriangle((Vector2){ x + 6, y }, (Vector2){ x + 11, y }, (Vector2){ x + 9, y - 10 }, fill);
+            DrawRectangleLines((int)x - 11, (int)y, 22, 7, line); break;
+    default:                                                         /* the serpent: an S of beads */
+        {
+            int k;
+            for (k = 0; k < 6; k++)
+                DrawCircle((int)(x - 9 + k * 3.6f), (int)(y + sinf(k * 1.2f) * 6), k == 5 ? 4.0f : 3.0f, done ? line : fill);
+        }
+        break;
+    }
+    if (done) DrawLineEx((Vector2){ x - 8, y - 9 }, (Vector2){ x + 6, y + 10 }, 2.0f, (Color){ 255, 220, 140, 255 });   /* cracked */
+}
+
+static void DrawRelicRow(const Game *g)
+{
+    int i;
+    for (i = 0; i < WING_COUNT; i++) RelicIcon(i, 44.0f + i * 40.0f, 140.0f, g->relicDestroyed[i]);
+    RelicIcon(5, 44.0f + WING_COUNT * 40.0f, 140.0f, g->wing == WING_COUNT - 1 && g->serpent.exists ? !g->serpent.alive
+                                                     : g->sanctum);
 }
 
 void UI_DrawHUD(const Game *g)
@@ -230,6 +277,7 @@ void UI_DrawHUD(const Game *g)
     DrawRectangle(24, 62, (int)(222 * dashReady), 8, dashReady >= 1.0f ? COL_GOLD : (Color){ 120, 100, 70, 255 });
     UI_Text(false, dashReady >= 1.0f ? "Dash ready (Shift)" : "Dash...", 26, 72, 20, Alpha(COL_BONE, 0.8f));
     if (p->god) UI_Text(false, "GOD MODE", 26, 96, 20, COL_GOLD);
+    if (!g->sanctum) DrawRelicRow(g);
 
     /* wing name, top center */
     UI_TextCentered(true, g->world.name, SCREEN_W * 0.5f, 12, 40, Alpha(COL_BONE, 0.9f));
@@ -302,6 +350,8 @@ void UI_DrawInventory(const Game *g)
         bool here = w == g->wing;
         UI_Text(true, TextFormat("%s \xE2\x80\x94 %s", Game_WingTitle(w), WING_NAMES[w]), 110, y, 32,
                 here ? COL_BONE : COL_FADED);
+        UI_Text(false, TextFormat("Soul Relic: %s", g->relicDestroyed[w] ? RELIC_NAMES[w] : "???"), 760, y + 6, 22,
+                g->relicDestroyed[w] ? COL_GOLD : (Color){ 90, 84, 80, 255 });
         for (i = 0; i < WINGS[w].chests; i++) {
             const char *name = TREASURES[w][i] ? TREASURES[w][i] : "?";
             float x = 130.0f + i * 212.0f;
@@ -347,8 +397,13 @@ void UI_DrawVictory(const Game *g)
         for (i = 0; i < WINGS[w].chests; i++) { total++; if (g->found[w][i]) found++; }
     DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){ 4, 3, 2, 240 });
     UI_TextCentered(true, "THE BELLS ARE SILENT", SCREEN_W * 0.5f, 60, 96, COL_GOLD);
-    UI_TextCentered(false, TextFormat("Ward Seals found: %d / %d", found, total), SCREEN_W * 0.5f, 210, 32, COL_BONE);
-    UI_TextCentered(false, TextFormat("Enemies defeated: %d", g->enemiesSlain), SCREEN_W * 0.5f, 252, 32, COL_BONE);
+    UI_TextCentered(false, TextFormat("Ward Seals found: %d / %d", found, total), SCREEN_W * 0.5f, 190, 32, COL_BONE);
+    {
+        int r, relics = 0;
+        for (r = 0; r < WING_COUNT; r++) if (g->relicDestroyed[r]) relics++;
+        UI_TextCentered(false, TextFormat("Soul Relics destroyed: %d / %d", relics, WING_COUNT), SCREEN_W * 0.5f, 226, 32, COL_BONE);
+    }
+    UI_TextCentered(false, TextFormat("Enemies defeated: %d", g->enemiesSlain), SCREEN_W * 0.5f, 262, 32, COL_BONE);
     UI_TextCentered(false, TextFormat("Total time: %s", TimeText(g->playTime)), SCREEN_W * 0.5f, 294, 32, COL_BONE);
     for (i = 0; i < (int)(sizeof(credits) / sizeof(credits[0])); i++)
         UI_TextCentered(false, credits[i], SCREEN_W * 0.5f, 390.0f + i * 40.0f, i == 0 ? 30 : 24,

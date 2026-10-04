@@ -404,3 +404,35 @@ Decisions made while building, and things worth knowing.
   Controls: two columns of key caps. Credits: slow scroll ("Created by: ___" + all assets).
 - Sounds: synthesised wind loop (title only) and whoosh (`MakeNoise`); `Audio_Loop/Audio_Stop`.
 - Autotest: `shots/title.png`, `menu.png`, `controls.png`, `credits.png`; checks a key opens the menu.
+
+## Item 13 - Soul Relics, the caged serpent, the immortal Abbot
+- `relics.c` (new). The last chest opened in a wing releases that wing's Soul Relic instead of a
+  seal banner (its seal still counts): it rises to chest height, floats and turns, glows red
+  (moving light), whispers (`SND_DRONE`, synthesised) and the nearby candles dim. Banner "SOUL
+  RELIC FOUND: <name>" / "Strike it with your wand!". Aim assist always prefers a floating relic.
+  3 hits: each shakes it, adds glowing red cracks and makes it scream; the third shatters it
+  (red-white burst, shards, strong shake, cracked bell, red flash, "THE FIRST BELL SHATTERS").
+  Wings 1-4: the exit opens. Relics are code-built (Grimoire: black leather, iron caps, clasp,
+  red seal; Ring: dark gold band + faceted red stone that pulses; Locket: oval silver, crescent,
+  blue glowing seam, chain; Chalice: hexagonal foot, glowing embers; Crown: black iron thorns +
+  red gem) or loaded from `assets/models/relic_*.glb`. Each gives off wisps/embers/sparks.
+- Bell Tower: `props.c` places a 3x3 cage spot in the bell tower room as far as possible from the
+  Abbot (the great bell moves aside if needed). A stone dais with glowing red runes, 8 iron bars,
+  a domed top and chains to the ceiling; the bars are solid (a collider) until broken. Sealed
+  while any relic remains (sparks + a hint); then 6 hits bend/clang the bars, the 6th bursts them
+  outward. The Ember Serpent (26 rope-following segments, ember-scale texture, red eyes, flicking
+  tongue) coils inside, raising its head and hissing (`SND_HISS`) when Kael comes near.
+- Serpent fight: HP 8, circles Kael at ~6.5 units in curves; every 2.5 s it rears up glowing red
+  for 0.6 s (the telegraph) and then lunges 4 units forward (1 heart if within 1.1). On death it
+  bursts into embers -> "THE RED ABBOT IS MORTAL", his shield breaks and he attacks.
+- The Abbot is `immortal` until then: he waits (does not notice the player), a translucent red
+  shield shell surrounds him, spells spark off it (with a hint), and the boss bar reads IMMORTAL
+  when Kael is within 18 units. The wing 5 exit opens only after every chest, the relic, the
+  serpent and the Abbot. Respawn: a living freed serpent returns to the dais at full HP; a living
+  Abbot returns to full HP.
+- HUD: a row of 5 relic silhouettes + 1 serpent under the hearts (dark; destroyed = cracked with a
+  gold outline). Inventory lists each wing's relic; the final screen counts relics destroyed.
+- Particles have their own gravity now (smoke and embers rise).
+- Autotest: wing 1 relic before the exit; the whole Bell Tower sequence (sealed cage ignores hits
+  -> crown -> cage -> serpent -> mortal Abbot -> summon -> exit -> Sanctum); `shots/relics.png`
+  and `shots/cage.png` from a free camera.

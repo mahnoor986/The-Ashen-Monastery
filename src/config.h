@@ -255,6 +255,21 @@
     { "Seal of Embers", "Seal of the Rope", "Seal of the Toll", "Seal of the Abbot's Ring", "Seal of the Red Flame" }, \
 }
 
+/* ------------------------------------------------- relics, cage, serpent */
+#define RELIC_NAME_TABLE { "The Ashbound Grimoire", "The Ember Ring", "The Moonsilver Locket", \
+                           "The Chalice of Cinders", "The Thorned Crown" }
+#define RELIC_HITS          3           /* Red Lightning hits that shatter a Soul Relic */
+#define CAGE_HITS           6           /* hits that break the serpent's cage (once unsealed) */
+#define SERPENT_HP          8
+#define SERPENT_SPEED       4.2f        /* fast, in curves */
+#define SERPENT_KEEP_DIST   6.5f        /* circles Kael at about this distance */
+#define SERPENT_LUNGE_TIME  2.5f        /* seconds between lunges */
+#define SERPENT_REAR_TIME   0.6f        /* telegraph: rears up and glows red this long */
+#define SERPENT_LUNGE_DIST  4.0f        /* strikes this far forward */
+#define SERPENT_LUNGE_SPEED 14.0f
+#define SERPENT_HIT_RANGE   1.1f
+#define SERPENT_SPACING     0.22f       /* distance between body segments */
+
 /* --------------------------------------------------------------- sanctum */
 #define SANCTUM_FILE        "assets/wings/sanctum.txt"
 #define MAX_NPCS            16

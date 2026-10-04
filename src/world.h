@@ -93,6 +93,9 @@ typedef struct {
     Collider colliders[MAX_COLLIDERS]; int colliderCount;
     unsigned char window[WORLD_MAX_H][WORLD_MAX_W]; /* wall cell holds a window (bit per side) */
     Window windows[MAX_WINDOWS]; int windowCount;
+    bool    hasCage;                         /* the Bell Tower: the serpent's cage stands here */
+    Vector3 cagePos;
+    int     cageCollider;                    /* index into colliders (-1 = none) */
     unsigned char area[WORLD_MAX_H][WORLD_MAX_W];   /* AREA_* of every cell */
     unsigned char roomId[WORLD_MAX_H][WORLD_MAX_W]; /* 1-based room index, 0 = not a room */
     unsigned char island[WORLD_MAX_H][WORLD_MAX_W]; /* free-standing wall block inside a room */
