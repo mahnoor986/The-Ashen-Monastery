@@ -193,7 +193,6 @@ bool Game_LoadWing(Game *g, int wing)
     g->leaving = false;
     g->hurtFlash = 0.0f;
     g->shake = 0.0f;
-    WriteSave(g, wing + 1);
     return true;
 }
 
@@ -209,6 +208,7 @@ void Game_NewGame(Game *g, int wing)
         return;
     }
     g->state = STATE_PLAYING;
+    WriteSave(g, g->wing + 1);
     SetMouseCaptured(g, true);
 }
 
@@ -252,6 +252,7 @@ static void UpdateExit(Game *g, float dt)
         g->fade += dt * FADE_SPEED;
         if (g->fade >= 1.0f) {
             if (g->wing + 1 >= WING_COUNT || !Game_LoadWing(g, g->wing + 1)) Victory(g);
+            else WriteSave(g, g->wing + 1);         /* reached a new wing: remember it */
         }
     } else if (g->fade > 0.0f) {
         g->fade = fmaxf(0.0f, g->fade - dt * FADE_SPEED);
@@ -849,6 +850,29 @@ static int FlowTest(Game *g)
     return fails;
 }
 
+/* Balance: a player who only mashes the attack button vs. two wing-1 skeletons at once. */
+static int BalanceTest(Game *g)
+{
+    Input in = { 0 };
+    int i, fails = 0;
+    printf("\nbalance test (wing 1, mashing left click vs 2 skeletons):\n");
+    Game_NewGame(g, 0);
+    g->enemyCount = 2;
+    for (i = 0; i < 2; i++) {
+        Vector3 p = Vector3Add(g->player.pos, (Vector3){ i ? 2.5f : -2.5f, 0.0f, -2.0f });
+        Enemy_Spawn(&g->enemies[i], EN_SKELETON, p, 0.0f, &WINGS[0]);
+        g->enemies[i].alerted = true;
+    }
+    in.swing = true;
+    for (i = 0; i < 60 * 20 && g->state == STATE_PLAYING && (g->enemies[0].alive || g->enemies[1].alive); i++)
+        Frame(g, &in, 1.0f / 60.0f, false);
+    printf("  hearts left: %d of %d after %.1f s\n", g->player.hearts, PLAYER_MAX_HEARTS, i / 60.0f);
+    fails += Check(g->state == STATE_PLAYING && !g->enemies[0].alive && !g->enemies[1].alive,
+                   "both skeletons are beaten");
+    fails += Check(g->player.hearts >= 3, "with at least 3 hearts to spare");
+    return fails;
+}
+
 /* Wing 5: the gate needs every chest AND the Queen; she summons ghosts at half health. */
 static int QueenTest(Game *g)
 {
@@ -995,6 +1019,7 @@ int Game_Autotest(Game *g)
         EnemyShowcase(g);
         if (!Screen_Save("shots/enemies.png")) failures++;
         failures += FlowTest(g);
+        failures += BalanceTest(g);
         failures += QueenTest(g);
         BossShot(g);
     } else {
@@ -1013,6 +1038,15 @@ int Game_Autotest(Game *g)
         Screen_Save("shots/hud.png");
         for (f = 0; f < 70; f++) Frame(g, &use, dt, f == 69);
         Screen_Save("shots/chest_open.png");
+        g->found[1][0] = g->found[2][2] = true;   /* a few treasures from other wings, for the list */
+        g->state = STATE_INVENTORY;
+        Frame(g, &none, dt, true);
+        Screen_Save("shots/inventory.png");
+        g->state = STATE_PAUSED;
+        g->pauseSel = 1;
+        Frame(g, &none, dt, true);
+        Screen_Save("shots/pause.png");
+        g->state = STATE_PLAYING;
         Die(g);
         Frame(g, &none, dt, true);
         Screen_Save("shots/death.png");

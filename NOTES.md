@@ -97,3 +97,16 @@ Decisions made while building, and things worth knowing.
   vsync-limited, on this Intel HD 510).
 - Save: `save.txt` holds the highest wing reached (1-5). The menu shows "Continue (Wing N)".
   New Game always starts at wing 1 (the save keeps the highest wing reached).
+
+## Phase 6 decisions
+- Menu background: wing 1 rendered in 3D with the camera slowly orbiting inside the entrance hall.
+- Controls hint: bottom of the menu, and during the first 20 s of wing 1.
+- Balance: `--autotest` runs a "button masher" check (only left click, two wing-1 skeletons
+  at once); it wins with 4 of 5 hearts left. Hits stagger normal enemies, every attack is
+  telegraphed for 0.5 s, chests heal, and every wing starts with full hearts.
+- `make release` needed `"$(MAKE)"` quoted (make itself lives in a path with a space).
+- `build.bat` was rewritten for this project (collects `src\*.c`, paths at the top).
+- The save is written only when a run starts or a new wing is reached (not by the menu's
+  background). Starting with `--wing N` also counts as reaching wing N.
+- Not done / ideas: no mouse-sensitivity option in a menu (edit `MOUSE_SENSITIVITY` in
+  config.h), no per-wing music, ghosts only drawn faintly (not hidden) in the dark.

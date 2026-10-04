@@ -44,7 +44,7 @@ autotest: $(TARGET)
 	./$(TARGET) --autotest
 
 release: clean
-	$(MAKE) CFLAGS='-std=c99 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -I"$(RAYLIB_PATH)/include"' LDLIBS="-lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -s"
+	"$(MAKE)" CFLAGS='-std=c99 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -I"$(RAYLIB_PATH)/include"' LDLIBS="-lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -s"
 
 clean:
 	rm -rf build $(TARGET)
