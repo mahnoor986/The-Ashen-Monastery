@@ -7,7 +7,7 @@
 
 #include "raylib.h"
 
-void Screen_Init(const char *title);     /* opens the window sized to fit the monitor */
+void Screen_Init(const char *title, bool vsync);   /* opens the window sized to fit the monitor */
 void Screen_Begin(void);                 /* start drawing a frame into the virtual screen */
 void Screen_End(void);                   /* scale the virtual screen into the window and present */
 bool Screen_Save(const char *path);      /* export the last finished frame as a PNG */

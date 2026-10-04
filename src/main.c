@@ -33,10 +33,10 @@ int main(int argc, char **argv)
         SetTraceLogLevel(LOG_WARNING);              /* keep the summary readable */
         setvbuf(stdout, NULL, _IONBF, 0);           /* show progress immediately */
     }
-    Screen_Init(WINDOW_TITLE);
+    Screen_Init(WINDOW_TITLE, !tour);               /* --tour measures the real frame rate */
     ChangeDirectory(GetApplicationDirectory());     /* relative asset paths work when double-clicked */
     SetExitKey(KEY_NULL);                           /* Esc pauses instead of quitting */
-    SetTargetFPS(TARGET_FPS);
+    SetTargetFPS(tour ? 0 : TARGET_FPS);
 
     Game_Init(&game, startWing, directStart, autotest || tour);
 

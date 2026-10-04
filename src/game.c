@@ -200,7 +200,7 @@ bool Game_LoadWing(Game *g, int wing)
     g->wing = wing;
     g->sanctum = false;
     g->npcCount = 0;
-    Render_SetWarm(false);
+    Render_ResetLights();
     Audio_SetCalm(false);
     g->wingTime = 0.0f;
 
@@ -324,7 +324,7 @@ bool Game_LoadSanctum(Game *g)
     }
     CameraRig_Init(&g->rig, g->world.startYaw);
     CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
-    Render_SetWarm(true);
+    Render_ResetLights();
     Audio_SetCalm(true);
     g->bannerCount = 0;
     PushBanner(g, "THE SANCTUM", "The bells are broken. Your friends are waiting.", COL_GOLD, BANNER_TIME + 1.0f);
@@ -955,6 +955,17 @@ static int CompareFar(const void *a, const void *b)
     return (da < db) - (da > db);      /* farthest first */
 }
 
+/* Wing 5: a red glow around the Red Abbot while he lives. */
+static void BossLight(const Game *g)
+{
+    int i;
+    for (i = 0; i < g->enemyCount; i++) {
+        const Enemy *e = &g->enemies[i];
+        if (e->alive && e->type == EN_ABBOT)
+            Render_AddDynamicLight((Vector3){ e->pos.x, 2.2f, e->pos.z }, (Vector3){ 1.1f, 0.12f, 0.08f }, 7.0f);
+    }
+}
+
 static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 {
     DrawOrder ghosts[MAX_ENEMIES];
@@ -964,7 +975,8 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 
     Render_SetFlare(g->torchFlare);
     Render_SetLightning(g->sanctum ? 0.0f : LightningFlash(g->lightningAge));
-    Render_BeginFrame(g->sanctum ? &SANCTUM : &WINGS[g->wing], cam, lightAt, g->time);
+    BossLight(g);
+    Render_BeginFrame(g->sanctum ? &SANCTUM : &WINGS[g->wing], &g->world, cam, lightAt, g->time);
     if (g->beamTime > 0.0f) {
         float f = g->beamTime / BEAM_TIME;
         Render_SetFlash(g->beamEnd, (Vector3){ 2.6f * f, 0.15f * f, 0.1f * f }, FLASH_RADIUS);
@@ -1014,6 +1026,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
 
     /* transparent pass: cobwebs, then ghosts far to near, without writing depth */
     Render_DrawWorldTransparent(&g->world);
+    Render_DrawFlames(&g->world, g->time);
     if (!g->sanctum) Render_DrawWindowShafts(&g->world, g->time);
     qsort(ghosts, (size_t)nGhosts, sizeof(ghosts[0]), CompareFar);
     rlDrawRenderBatchActive();
@@ -1046,6 +1059,13 @@ static Camera3D DialogueCamera(const Game *g)
     return cam;
 }
 
+/* Background = this wing's fog colour, so distant walls melt into it. */
+static Color FogColor(const Game *g)
+{
+    const WingConfig *c = g->sanctum ? &SANCTUM : &WINGS[g->wing];
+    return (Color){ (unsigned char)(c->fog[0] * 255.0f), (unsigned char)(c->fog[1] * 255.0f), (unsigned char)(c->fog[2] * 255.0f), 255 };
+}
+
 void Game_Draw(Game *g)
 {
     Camera3D cam = g->state == STATE_DIALOGUE ? DialogueCamera(g) : g->rig.cam;
@@ -1059,7 +1079,7 @@ void Game_Draw(Game *g)
     }
     /* 3D at low resolution, then up-scaled through the post-process, then crisp UI on top */
     Post_BeginScene();
-    ClearBackground(g->sanctum ? (Color){ 26, 15, 5, 255 } : COL_NEARBLACK);
+    ClearBackground(FogColor(g));
     if (g->worldLoaded && g->state != STATE_INTRO) DrawScene(g, cam, g->state != STATE_MENU);
     Post_EndScene();
 

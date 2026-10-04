@@ -76,16 +76,16 @@
 #define TORCH_COLOR_R   1.00f           /* warm amber candle/torch light */
 #define TORCH_COLOR_G   0.68f
 #define TORCH_COLOR_B   0.35f
-#define FOG_COLOR_R     0.025f          /* fog fades to deep blue-indigo (never pure black) */
-#define FOG_COLOR_G     0.030f
-#define FOG_COLOR_B     0.060f
-#define AMBIENT_TINT_R  0.70f           /* ambient light is cold moonlight blue */
-#define AMBIENT_TINT_G  0.85f
-#define AMBIENT_TINT_B  1.30f
-#define PLAYER_LIGHT_R  0.50f           /* soft, slightly cool light carried by the player */
-#define PLAYER_LIGHT_G  0.50f
-#define PLAYER_LIGHT_B  0.55f
-#define PLAYER_LIGHT_HEIGHT 1.7f        /* light sits above the player's head */
+#define MAX_LIGHTS      16              /* per-pixel lights per frame (the nearest visible ones) */
+#define MAX_DYN_LIGHTS  4               /* + moving lights (boss glow, relics...) */
+#define LIGHT_VIEW_RANGE 22.0f          /* lights farther than this from the camera are ignored */
+#define LIGHT_FADE_SPEED 4.0f           /* lights fade in/out over 1/4 s instead of popping */
+#define CHAR_AMBIENT    0.06f           /* characters get a little extra light (readable silhouettes) */
+#define FLOOR_SPECULAR  0.35f           /* polished flagstones catch the lights */
+#define PLAYER_LIGHT_R  0.30f           /* soft, slightly cool light around the player */
+#define PLAYER_LIGHT_G  0.32f
+#define PLAYER_LIGHT_B  0.38f
+#define PLAYER_LIGHT_HEIGHT 2.4f        /* light sits above, between the player and the camera */
 
 /* ---------------------------------------------------------------- camera */
 #define CAM_FOVY            62.0f       /* vertical field of view in degrees */
@@ -236,14 +236,10 @@
 #define SANCTUM_FILE        "assets/wings/sanctum.txt"
 #define MAX_NPCS            16
 #define NPC_TALK_RANGE      2.0f        /* friends speak when you come this close */
-#define SANCTUM_FOG_R       0.10f       /* warm, dark amber fog */
-#define SANCTUM_FOG_G       0.06f
-#define SANCTUM_FOG_B       0.02f
-#define SANCTUM_TINT_R      1.25f       /* golden ambient light */
-#define SANCTUM_TINT_G      1.00f
-#define SANCTUM_TINT_B      0.65f
-/* lighting for the Sanctum (same fields as a wing; only fog, light and ambient are used) */
-#define SANCTUM_CONFIG { SANCTUM_FILE, 0, 1.0f, 1.0f, 1.0f, 0.045f, 9.0f, 0.34f }
+/* lighting for the Sanctum (same fields as a wing; only the mood fields are used):
+ * warm dark amber fog, golden ambient, bright candles */
+#define SANCTUM_CONFIG { SANCTUM_FILE, 0, 1.0f, 1.0f, 1.0f, 0.045f, 9.0f, 0.30f, \
+                         { 0.10f, 0.06f, 0.02f }, { 1.25f, 1.00f, 0.65f }, 1.3f }
 
 /* ----------------------------------------------------------------- wings */
 #define WING_COUNT 5
@@ -257,17 +253,25 @@ typedef struct {
     float fogDensity;          /* exponential-squared fog density */
     float playerLightRadius;   /* radius of the soft light around the player */
     float ambient;             /* base light level */
+    float fog[3];              /* fog / background colour */
+    float tint[3];             /* ambient light colour */
+    float lightMul;            /* brightness of candles, torches and fires */
 } WingConfig;
 
 /* Edit the numbers here. (The array itself is created in game.c from this macro, because a
  * static array in a header would be copied into every .c file.) */
-#define WING_TABLE {                                                                  \
-    /* file                     chests speed  sight fire   fog    light ambient */      \
-    { "assets/wings/wing1.txt", 3,     1.00f, 0.8f, 1.0f,  0.06f, 7.0f, 0.20f },        \
-    { "assets/wings/wing2.txt", 4,     1.05f, 0.9f, 1.1f,  0.08f, 6.5f, 0.17f },        \
-    { "assets/wings/wing3.txt", 4,     1.10f, 1.0f, 1.2f,  0.10f, 6.0f, 0.14f },        \
-    { "assets/wings/wing4.txt", 5,     1.20f, 1.1f, 1.3f,  0.13f, 5.0f, 0.10f },        \
-    { "assets/wings/wing5.txt", 5,     1.25f, 1.2f, 1.4f,  0.16f, 4.5f, 0.07f },        \
+#define WING_TABLE {                                                                                  \
+    /* file                     chests speed  sight fire   fog    light ambient  fog colour              ambient tint            lights */ \
+    /* 1: cold moonlit blue, many candles (easiest to see) */                                       \
+    { "assets/wings/wing1.txt", 3,     1.00f, 0.8f, 1.0f,  0.050f, 7.0f, 0.30f, { 0.025f, 0.030f, 0.060f }, { 0.70f, 0.85f, 1.30f }, 1.15f }, \
+    /* 2: warm gold candlelight, crimson banners */                                                 \
+    { "assets/wings/wing2.txt", 4,     1.05f, 0.9f, 1.1f,  0.055f, 6.5f, 0.26f, { 0.045f, 0.030f, 0.035f }, { 0.95f, 0.82f, 0.88f }, 1.25f }, \
+    /* 3: amber reading lamps, green-tinted shadows */                                              \
+    { "assets/wings/wing3.txt", 4,     1.10f, 1.0f, 1.2f,  0.065f, 6.0f, 0.25f, { 0.025f, 0.040f, 0.032f }, { 0.70f, 0.95f, 0.80f }, 1.15f }, \
+    /* 4: sickly pale green-cyan, few lights, dense fog */                                          \
+    { "assets/wings/wing4.txt", 5,     1.20f, 1.1f, 1.3f,  0.090f, 5.5f, 0.21f, { 0.030f, 0.055f, 0.055f }, { 0.65f, 1.00f, 0.95f }, 0.95f }, \
+    /* 5: stormy blue, frequent lightning, red light around the boss */                             \
+    { "assets/wings/wing5.txt", 5,     1.25f, 1.2f, 1.4f,  0.075f, 5.0f, 0.19f, { 0.020f, 0.025f, 0.055f }, { 0.65f, 0.80f, 1.35f }, 1.00f }, \
 }
 extern const WingConfig WINGS[WING_COUNT];
 

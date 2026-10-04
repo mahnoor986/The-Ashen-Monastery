@@ -324,3 +324,25 @@ Decisions made while building, and things worth knowing.
 - Bell tolls get rarer as bells break (interval x 5 / bells left) and stop after the fifth.
 - Embers now rise only from real fires (sconce torches, fireplaces), not candles or windows.
 - New screenshots: `shots/window.png` (lightning) and `shots/window_dark.png`.
+
+## Item 9 - Per-pixel lighting, palette, per-wing mood
+- `world.vs/fs` rewritten: per-pixel Lambert (slightly wrapped) from up to 16 world lights
+  (`lightsPos/Color/Radius[]`, falloff (1 - (d/r)^2)^2), the player's soft light (between Kael and
+  the camera, a little above), the red lightning flash, a cold ambient with a small sky/ground
+  difference, exp^2 fog in the wing's colour; floors get a faint Blinn highlight (polished
+  flagstones). Texture coordinates are `noperspective` (PS1 affine mapping); vertex snapping stays.
+- Light selection (render.c): every frame the 16 nearest lights within 22 units that the camera
+  or Kael can see (grid line of sight; anything within 3 units counts) go into shader slots; each
+  slot fades its light in/out over 1/4 s so lights never pop (teleports snap). Candles, torches and
+  fires flicker individually and flare when a bell tolls; moonlit windows are steady and flood
+  white-blue during lightning. Up to 4 moving lights per frame (`Render_AddDynamicLight`): the Red
+  Abbot carries a red glow.
+- Nothing is baked into vertices any more (`BAKE_LIGHT 0` in architecture.c, kept for a
+  shader-less fallback). Characters are lit per pixel too, plus a little extra ambient.
+- Flames are additive camera-facing sprites (generated flame texture) with a soft halo.
+- Per-wing mood in `WING_TABLE` (fog colour, ambient tint, candle brightness): 1 cold moonlit
+  blue with many candles; 2 warm gold; 3 amber with green-tinted shadows; 4 sickly green-cyan,
+  dense fog, dimmer candles; 5 stormy blue with frequent lightning. The Sanctum is warm gold.
+  The background clear colour is the wing's fog colour.
+- Performance: `--tour` now runs without vsync and measures ~130 FPS average on this Intel HD 510
+  (16 lights, 640x360), so MAX_LIGHTS stays 16.

@@ -40,6 +40,7 @@ typedef struct {
     Vector3 normal;      /* sconces: direction the torch sticks out of the wall (else 0) */
     Vector3 color;       /* light colour (1 = full) */
     float   radius;      /* how far it reaches */
+    float   flicker;     /* 1 = candle/torch flicker, 0 = steady (moonlit windows) */
 } Torch;
 
 /* A visible flame (drawn every frame, flickering); size 1 = torch, ~0.35 = candle. */

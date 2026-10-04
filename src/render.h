@@ -13,15 +13,20 @@ bool   Render_HasShader(void);
 Shader Render_Shader(void);         /* world shader (or raylib's default) for character materials */
 Material Render_WorldMaterial(void);
 
-/* Per-frame uniforms: camera, fog, ambient, flicker and the player light for this wing. */
-void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, float time);
+/* Per-frame uniforms: camera, fog, ambient, the player light, and the 16 nearest visible lights
+ * of the world (faded in and out smoothly). */
+void Render_BeginFrame(const WingConfig *wing, const World *w, Camera3D cam, Vector3 playerPos, float time);
+/* A moving light for the next frame only (boss glow, relics, fireballs); call before BeginFrame. */
+void Render_AddDynamicLight(Vector3 pos, Vector3 color, float radius);
+void Render_ResetLights(void);                   /* new wing loaded: forget the faded light slots */
+/* Flame sprites (additive, after the opaque pass). */
+void Render_DrawFlames(const World *w, float time);
 /* Switch how the next DrawMesh calls are lit. */
-void Render_UseWorldLight(void);                 /* baked vertex light (world chunks) */
-void Render_UseEntityLight(Vector3 light);       /* a character standing in this torch light */
+void Render_UseWorldLight(void);                 /* static world: no extra ambient */
+void Render_UseEntityLight(Vector3 light);       /* a character standing in this light (a bit of extra ambient) */
 void Render_SetEmissive(bool on);                /* glowing: no lighting, only fog */
 void Render_SetEmissiveMode(int mode);           /* 0 lit, 1 glowing, 2 glowing + no fog (eyes) */
 void Render_SetFlare(float amount);              /* 0..1: torches flare up (bell toll) */
-void Render_SetWarm(bool on);                    /* Sanctum: golden fog + ambient instead of red */
 void Render_SetDebugBright(bool on);             /* --bright: inspect geometry with flat light */
 void Render_SetLightning(float amount);          /* 0..1: lightning flash (windows blaze) */
 /* Moonlight shafts from the windows + drifting dust (transparent pass, additive). */

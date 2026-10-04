@@ -1,6 +1,7 @@
 #version 330
-// world.vs - Blackthorn Manor world/character vertex shader.
-// Passes world position, UV, normal and the baked light (vertex color) to the fragment shader.
+// world.vs - The Ashen Monastery world/character vertex shader.
+// Passes world position, normal and UV to the fragment shader. PS1 touches: vertices snap to a
+// coarse screen grid (wobble) and texture coordinates are not perspective-corrected (affine).
 
 in vec3 vertexPosition;
 in vec2 vertexTexCoord;
@@ -12,12 +13,14 @@ uniform mat4 matModel;
 uniform vec2 snapGrid;      // PS1 wobble: snap to this screen grid (0 = off)
 
 out vec3 fragPos;
-out vec2 fragTexCoord;
+out vec3 fragNormal;
+noperspective out vec2 fragTexCoord;    // affine texture mapping, like the PlayStation
 out vec4 fragColor;
 
 void main()
 {
     fragPos = vec3(matModel * vec4(vertexPosition, 1.0));
+    fragNormal = normalize(mat3(matModel) * vertexNormal);
     fragTexCoord = vertexTexCoord;
     fragColor = vertexColor;
     gl_Position = mvp * vec4(vertexPosition, 1.0);

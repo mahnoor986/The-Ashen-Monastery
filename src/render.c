@@ -13,7 +13,6 @@
 static float    flare;        /* 0..1 torch flare when a bell tolls */
 static bool     debugBright;  /* --bright: flat bright ambient to inspect geometry */
 static float    lightning;    /* 0..1 lightning flash */
-static bool     warm;         /* Sanctum: golden fog and ambient */
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;     /* atlas material (props, characters) */
@@ -21,8 +20,10 @@ static Material mats[MAT_COUNT];  /* world materials */
 static Mesh     leafWood, leafMetal;                         /* one exit door leaf */
 static Mesh     chestWood, chestMetal, lidWood, lidMetal, chestGold;   /* reliquary chest */
 static int locSnap, locAmbientTint, locFlashPos, locFlashColor, locFlashRadius;
-static int locFogColor, locFogDensity, locAmbient, locFlicker, locLightPos, locLightRadius,
-           locLightColor, locEntityLight, locIsEntity, locEmissive, locEmissiveBoost;
+static int locFogColor, locFogDensity, locAmbient, locLightPos, locLightRadius, locLightColor,
+           locExtraAmbient, locEmissive, locEmissiveBoost, locSpecular,
+           locLightCount, locLightsPos, locLightsColor, locLightsRadius;
+static Camera3D frameCam;     /* camera of the frame being drawn (flame billboards) */
 
 /* ------------------------------------------------------------ prop meshes */
 
@@ -203,12 +204,15 @@ void Render_Init(void)
         locFogColor = GetShaderLocation(shader, "fogColor");
         locFogDensity = GetShaderLocation(shader, "fogDensity");
         locAmbient = GetShaderLocation(shader, "ambient");
-        locFlicker = GetShaderLocation(shader, "flicker");
         locLightPos = GetShaderLocation(shader, "lightPos");
         locLightRadius = GetShaderLocation(shader, "lightRadius");
         locLightColor = GetShaderLocation(shader, "lightColor");
-        locEntityLight = GetShaderLocation(shader, "entityLight");
-        locIsEntity = GetShaderLocation(shader, "isEntity");
+        locExtraAmbient = GetShaderLocation(shader, "extraAmbient");
+        locSpecular = GetShaderLocation(shader, "specular");
+        locLightCount = GetShaderLocation(shader, "lightCount");
+        locLightsPos = GetShaderLocation(shader, "lightsPos");
+        locLightsColor = GetShaderLocation(shader, "lightsColor");
+        locLightsRadius = GetShaderLocation(shader, "lightsRadius");
         locEmissive = GetShaderLocation(shader, "emissive");
         locEmissiveBoost = GetShaderLocation(shader, "emissiveBoost");
     } else {
@@ -269,25 +273,148 @@ float Render_Flicker(float time)
 static void SetF(int loc, float v)    { SetShaderValue(shader, loc, &v, SHADER_UNIFORM_FLOAT); }
 static void SetV3(int loc, Vector3 v) { SetShaderValue(shader, loc, &v, SHADER_UNIFORM_VEC3); }
 
-void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, float time)
+/* ---- light selection: the world has up to a few hundred lights, the shader takes the 16 nearest
+ * visible ones. Each shader slot fades its light in and out so lights never pop. */
+
+typedef struct { int light; float weight; } LightSlot;
+
+static LightSlot slots[MAX_LIGHTS];
+static Vector3   dynPos[MAX_DYN_LIGHTS], dynColor[MAX_DYN_LIGHTS];
+static float     dynRadius[MAX_DYN_LIGHTS];
+static int       dynCount;
+static bool      snapLights = true;       /* next frame: show the chosen lights at once */
+static float     lastTime;
+static Vector3   lastCam;
+
+void Render_ResetLights(void)
 {
-    if (!hasShader) return;
+    int i;
+    for (i = 0; i < MAX_LIGHTS; i++) slots[i] = (LightSlot){ -1, 0.0f };
+    snapLights = true;
+}
+
+void Render_AddDynamicLight(Vector3 pos, Vector3 color, float radius)
+{
+    if (dynCount >= MAX_DYN_LIGHTS) return;
+    dynPos[dynCount] = pos;
+    dynColor[dynCount] = color;
+    dynRadius[dynCount] = radius;
+    dynCount++;
+}
+
+/* Candle flicker for light i (each light has its own rhythm). */
+static float LightFlicker(int i, float time)
+{
+    float p = i * 1.37f;
+    return 0.86f + 0.08f * sinf(time * 7.3f + p) + 0.04f * sinf(time * 13.1f + p * 2.0f) + 0.02f * sinf(time * 23.7f + p);
+}
+
+/* The (up to) MAX_LIGHTS nearest lights the camera or the player can see (or that are very
+ * close), nearest first. */
+static int ChooseLights(const World *w, Vector3 cam, Vector3 player, int *out)
+{
+    float bestD[MAX_LIGHTS];
+    int n = 0, i, k;
+    Vector3 head = { player.x, 1.5f, player.z };
+    for (i = 0; i < w->torchCount; i++) {
+        const Torch *t = &w->torches[i];
+        float d = Vector3Distance(cam, t->pos);
+        if (d > LIGHT_VIEW_RANGE + t->radius * 0.5f) continue;
+        if (n == MAX_LIGHTS && d >= bestD[n - 1]) continue;
+        if (d > 3.0f && !World_LineOfSight(w, cam, t->pos) && !World_LineOfSight(w, head, t->pos)) continue;
+        /* insert sorted */
+        k = n < MAX_LIGHTS ? n++ : MAX_LIGHTS - 1;
+        while (k > 0 && bestD[k - 1] > d) { bestD[k] = bestD[k - 1]; out[k] = out[k - 1]; k--; }
+        bestD[k] = d;
+        out[k] = i;
+    }
+    return n;
+}
+
+static void UpdateSlots(const World *w, Vector3 cam, Vector3 player, float dt)
+{
+    int want[MAX_LIGHTS], n = ChooseLights(w, cam, player, want), i, s;
+    bool placed[MAX_LIGHTS] = { false };
+    for (s = 0; s < MAX_LIGHTS; s++) {
+        bool keep = false;
+        if (slots[s].light < 0) continue;
+        for (i = 0; i < n; i++) if (want[i] == slots[s].light) { keep = true; placed[i] = true; }
+        slots[s].weight += (keep ? 1.0f : -1.0f) * LIGHT_FADE_SPEED * dt;
+        if (snapLights) slots[s].weight = keep ? 1.0f : 0.0f;
+        if (slots[s].weight >= 1.0f) slots[s].weight = 1.0f;
+        if (slots[s].weight <= 0.0f) slots[s] = (LightSlot){ -1, 0.0f };
+    }
+    for (i = 0; i < n; i++) {
+        if (placed[i]) continue;
+        for (s = 0; s < MAX_LIGHTS; s++) {
+            if (slots[s].light >= 0) continue;
+            slots[s] = (LightSlot){ want[i], snapLights ? 1.0f : 0.0f };
+            break;
+        }
+    }
+    snapLights = false;
+}
+
+void Render_BeginFrame(const WingConfig *wing, const World *w, Camera3D cam, Vector3 playerPos, float time)
+{
+    Vector3 pos[MAX_LIGHTS + MAX_DYN_LIGHTS], col[MAX_LIGHTS + MAX_DYN_LIGHTS];
+    float rad[MAX_LIGHTS + MAX_DYN_LIGHTS], dt = Clamp(time - lastTime, 0.0f, 0.1f);
+    int n = 0, i;
+
+    frameCam = cam;
+    if (Vector3Distance(cam.position, lastCam) > 4.0f) snapLights = true;    /* teleported (autotest, respawn) */
+    lastCam = cam.position;
+    lastTime = time;
+    if (w) UpdateSlots(w, cam.position, playerPos, dt);
+    if (!hasShader) { dynCount = 0; return; }
+
+    /* moving lights first, then the faded world lights */
+    for (i = 0; i < dynCount; i++, n++) { pos[n] = dynPos[i]; col[n] = dynColor[i]; rad[n] = dynRadius[i]; }
+    dynCount = 0;
+    for (i = 0; i < MAX_LIGHTS && w && n < MAX_LIGHTS + MAX_DYN_LIGHTS; i++) {
+        const Torch *t;
+        float k;
+        if (slots[i].light < 0 || slots[i].light >= w->torchCount) continue;
+        t = &w->torches[slots[i].light];
+        if (t->flicker > 0.0f) {
+            k = LightFlicker(slots[i].light, time) * wing->lightMul * (1.0f + 0.7f * flare);
+            col[n] = Vector3Scale(t->color, k * slots[i].weight);
+        } else {
+            /* moonlit window: lightning floods it with white-blue light */
+            Vector3 c = Vector3Lerp(t->color, (Vector3){ 0.9f, 0.95f, 1.1f }, lightning);
+            col[n] = Vector3Scale(c, (1.0f + 4.0f * lightning) * slots[i].weight);
+        }
+        pos[n] = t->pos;
+        rad[n] = t->radius;
+        n++;
+    }
+    SetShaderValue(shader, locLightCount, &n, SHADER_UNIFORM_INT);
+    if (n > 0) {
+        SetShaderValueV(shader, locLightsPos, pos, SHADER_UNIFORM_VEC3, n);
+        SetShaderValueV(shader, locLightsColor, col, SHADER_UNIFORM_VEC3, n);
+        SetShaderValueV(shader, locLightsRadius, rad, SHADER_UNIFORM_FLOAT, n);
+    }
+
     SetV3(shader.locs[SHADER_LOC_VECTOR_VIEW], cam.position);
-    SetV3(locFogColor, warm ? (Vector3){ SANCTUM_FOG_R, SANCTUM_FOG_G, SANCTUM_FOG_B }
-                            : (Vector3){ FOG_COLOR_R, FOG_COLOR_G, FOG_COLOR_B });
+    SetV3(locFogColor, (Vector3){ wing->fog[0], wing->fog[1], wing->fog[2] });
     SetF(locFogDensity, wing->fogDensity);
-    SetF(locAmbient, debugBright ? 1.6f : wing->ambient + lightning * 0.55f);
+    SetF(locAmbient, debugBright ? 1.6f : wing->ambient + lightning * 0.35f);
     SetF(locEmissiveBoost, 1.0f + 2.5f * lightning);
-    SetV3(locAmbientTint, warm ? (Vector3){ SANCTUM_TINT_R, SANCTUM_TINT_G, SANCTUM_TINT_B }
-                               : (Vector3){ AMBIENT_TINT_R, AMBIENT_TINT_G, AMBIENT_TINT_B });
+    SetV3(locAmbientTint, (Vector3){ wing->tint[0], wing->tint[1], wing->tint[2] });
     {
         Vector2 snap = { PS1_WOBBLE ? PS1_WOBBLE_GRID_W : 0.0f, PS1_WOBBLE_GRID_H };
         SetShaderValue(shader, locSnap, &snap, SHADER_UNIFORM_VEC2);
     }
-    SetF(locFlicker, Render_Flicker(time) * (1.0f + 0.7f * flare));
-    SetV3(locLightPos, (Vector3){ playerPos.x, playerPos.y + PLAYER_LIGHT_HEIGHT, playerPos.z });
+    /* the player's soft light hangs between Kael and the camera, a little above */
+    {
+        Vector3 head = { playerPos.x, playerPos.y + 1.5f, playerPos.z };
+        Vector3 lp = Vector3Lerp(head, cam.position, 0.4f);
+        lp.y = playerPos.y + PLAYER_LIGHT_HEIGHT;
+        SetV3(locLightPos, lp);
+    }
     SetF(locLightRadius, wing->playerLightRadius);
     SetV3(locLightColor, (Vector3){ PLAYER_LIGHT_R, PLAYER_LIGHT_G, PLAYER_LIGHT_B });
+    SetF(locSpecular, 0.0f);
     Render_SetFlash((Vector3){ 0 }, (Vector3){ 0 }, 1.0f);
     Render_UseWorldLight();
     Render_SetEmissive(false);
@@ -303,17 +430,15 @@ void Render_SetFlash(Vector3 pos, Vector3 color, float radius)
 
 void Render_UseWorldLight(void)
 {
-    if (hasShader) SetF(locIsEntity, 0.0f);
+    if (hasShader) SetF(locExtraAmbient, 0.0f);
 }
 
+/* Characters and moving props are lit per pixel like the world; `light` (the CPU estimate of the
+ * light where they stand) only adds a little extra ambient so silhouettes stay readable. */
 void Render_UseEntityLight(Vector3 light)
 {
-    /* half-desaturate torch light on characters so steel and bone don't turn orange-pink */
-    float grey = (light.x + light.y + light.z) / 3.0f;
-    if (!hasShader) return;
-    light = Vector3Lerp(light, (Vector3){ grey, grey, grey }, 0.45f);
-    SetF(locIsEntity, 1.0f);
-    SetV3(locEntityLight, light);
+    float avg = (light.x + light.y + light.z) / 3.0f;
+    if (hasShader) SetF(locExtraAmbient, CHAR_AMBIENT + 0.3f * fminf(avg, 1.0f));
 }
 
 void Render_SetEmissive(bool on)
@@ -331,11 +456,6 @@ void Render_SetFlare(float amount)
     flare = amount;
 }
 
-void Render_SetWarm(bool on)
-{
-    warm = on;
-}
-
 void Render_DrawWorld(const World *w, float time)
 {
     int i;
@@ -345,7 +465,9 @@ void Render_DrawWorld(const World *w, float time)
         bool glow = m == MAT_GLASS || m == MAT_FLAME || m == MAT_POTION;
         if (m == MAT_COBWEB) continue;                       /* drawn in the transparent pass */
         if (glow) Render_SetEmissive(true);
+        if (m == MAT_FLOOR && hasShader) SetF(locSpecular, FLOOR_SPECULAR);
         DrawMesh(w->parts[i].mesh, mats[m], MatrixIdentity());
+        if (m == MAT_FLOOR && hasShader) SetF(locSpecular, 0.0f);
         if (glow) Render_SetEmissive(false);
     }
 
@@ -353,14 +475,7 @@ void Render_DrawWorld(const World *w, float time)
     for (i = 0; i < w->doorwayCount; i++) DrawDoorway(w, &w->doorways[i]);
     Render_UseWorldLight();
 
-    /* flames: small glowing cubes that flicker in size (raylib's default shader = unlit) */
-    for (i = 0; i < w->flameCount; i++) {
-        Vector3 p = w->flames[i].pos;
-        float k = w->flames[i].size;
-        float f = (1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i)) * (1.0f + 0.9f * flare) * k;
-        DrawCube((Vector3){ p.x, p.y + 0.02f * k, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
-        DrawCube((Vector3){ p.x, p.y, p.z }, 0.08f * k, 0.12f * f, 0.08f * k, (Color){ 255, 236, 150, 255 });
-    }
+    (void)time;
 }
 
 /* Transparent world parts (cobwebs): after all opaque geometry, without depth writes. */
@@ -376,6 +491,27 @@ void Render_DrawWorldTransparent(const World *w)
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
     rlEnableDepthMask();
+}
+
+/* Flames: camera-facing flame sprites with a soft glow around them, drawn additively so they
+ * shine through the fog. They flicker in size and flare when a bell tolls. */
+void Render_DrawFlames(const World *w, float time)
+{
+    Texture2D tex = Textures_Material(MAT_FLAME);
+    int i;
+    rlDrawRenderBatchActive();
+    BeginBlendMode(BLEND_ADDITIVE);
+    rlDisableDepthMask();
+    for (i = 0; i < w->flameCount; i++) {
+        Vector3 p = w->flames[i].pos;
+        float k = w->flames[i].size;
+        float f = (1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i)) * (1.0f + 0.6f * flare);
+        DrawBillboard(frameCam, tex, (Vector3){ p.x, p.y + 0.06f * k, p.z }, 0.26f * k * f, (Color){ 255, 220, 170, 255 });
+        DrawBillboard(frameCam, tex, (Vector3){ p.x, p.y + 0.02f * k, p.z }, 0.75f * k * f, (Color){ 255, 120, 40, 46 });
+    }
+    rlDrawRenderBatchActive();
+    rlEnableDepthMask();
+    EndBlendMode();
 }
 
 /* Material of a world material id (for props drawn outside the static meshes). */

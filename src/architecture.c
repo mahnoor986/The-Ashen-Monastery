@@ -30,12 +30,16 @@ static float Hash01(int x, int y, int seed)
     return (float)((h ^ (h >> 16)) & 0xffffu) / 65535.0f;
 }
 
-/* Baked sconce light at a vertex, cached by position (the same corner is shared by many quads). */
+/* Vertex light. The world shader lights everything per pixel, so by default no light is baked
+ * (BAKE_LIGHT 0); baking (cached by position) is kept for a shader-less fallback look. */
+#define BAKE_LIGHT 0
 #define LIGHT_CACHE 65536
 static struct { int key[3]; Color c; bool used; } lightCache[LIGHT_CACHE];
 
 static Color LightAt(const World *w, Vector3 p)
 {
+    if (!BAKE_LIGHT) { (void)w; (void)p; return (Color){ 130, 130, 135, 255 }; }
+    {
     int k[3] = { (int)floorf(p.x * 50.0f + 0.5f), (int)floorf(p.y * 50.0f + 0.5f), (int)floorf(p.z * 50.0f + 0.5f) };
     unsigned int h = ((unsigned int)k[0] * 73856093u ^ (unsigned int)k[1] * 19349663u ^ (unsigned int)k[2] * 83492791u) % LIGHT_CACHE;
     Vector3 l;
@@ -53,6 +57,7 @@ static Color LightAt(const World *w, Vector3 p)
     }
     l = World_LightAt(w, p);
     return (Color){ (unsigned char)(l.x * 255.0f), (unsigned char)(l.y * 255.0f), (unsigned char)(l.z * 255.0f), 255 };
+    }
 }
 
 /* A quad a,b,c,d (counter-clockwise seen from the front) with world-space UVs. */
@@ -380,6 +385,7 @@ static void FindWindows(World *w)
                 w->windowCount++;
                 World_AddLight(w, (Vector3){ c.x + n.x * 1.2f, c.y - 0.3f, c.z + n.y * 1.2f },
                                (Vector3){ MOON_R, MOON_G, MOON_B }, WINDOW_LIGHT_RADIUS);
+                if (w->torchCount > 0) w->torches[w->torchCount - 1].flicker = 0.0f;     /* moonlight is steady */
             }
         }
     }
@@ -856,6 +862,7 @@ static void CollectTorches(World *w)
                 w->torches[w->torchCount].normal = (Vector3){ (float)DX[d], 0.0f, (float)DZ[d] };
                 w->torches[w->torchCount].color = (Vector3){ TORCH_COLOR_R, TORCH_COLOR_G, TORCH_COLOR_B };
                 w->torches[w->torchCount].radius = TORCH_RADIUS;
+                w->torches[w->torchCount].flicker = 1.0f;
                 w->torchCount++;
                 World_AddFlame(w, TorchFlame(x, z, d), 1.0f);
             }

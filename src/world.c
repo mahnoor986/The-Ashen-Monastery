@@ -89,6 +89,7 @@ void World_AddLight(World *w, Vector3 pos, Vector3 color, float radius)
     t->normal = (Vector3){ 0 };
     t->color = color;
     t->radius = radius;
+    t->flicker = 1.0f;
 }
 
 bool World_BoxBlocked(const World *w, float cx, float cz, float size)

@@ -15,11 +15,11 @@ static Rectangle DestRect(void)
                         SCREEN_W * scale, SCREEN_H * scale };
 }
 
-void Screen_Init(const char *title)
+void Screen_Init(const char *title, bool vsync)
 {
     int mon, mw, mh, w = SCREEN_W, h = SCREEN_H;
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | (vsync ? FLAG_VSYNC_HINT : 0));
     InitWindow(SCREEN_W, SCREEN_H, title);
 
     /* shrink the window if the monitor is too small (keep 16:9, leave room for the taskbar) */
