@@ -363,3 +363,22 @@ Decisions made while building, and things worth knowing.
   Controls hint lists "M map". `shots/map.png` in the autotest.
 - Lighting balance: candle/torch/fire light x0.72 (`FLAME_LIGHT_SCALE`), dimmer fireplace and wing 2
   candles, less extra light on characters (the dormitory was over-exposed).
+
+## Item 11 - Enemy restyle and model slots
+- `character.c` rewritten around unit low-poly primitives built as lathes (no more boxes for
+  bodies): flared robe, cylinder, cone, sphere (+ ember-crack versions). Robes flare to the floor,
+  heads are spheres, limbs are cylinders/sleeves, hoods are rounded cowls with a shadowed face.
+  - Kael is now a young apprentice mage: dark indigo robe, crimson stole, belt, hood down on the
+    shoulders, dark hair; the wand is unchanged (dark wood, gold band, glowing red tip).
+  - Ashen Monk: charred ember-crack robe and sleeves, peaked hood, claw hands. Choir Wraith: robe
+    tapering into a downward wisp, open singing mouth. Ember Priest: crimson robe, tall cone hood,
+    censer on a chain. Red Abbot: 1.8x, crimson/black, iron bell mitre with lip and knob, two
+    orbiting fireballs. Sanctum NPCs: robes, hair, Oren's long cone beard and glowing staff.
+  - Red emissive eyes (unlit, no fog), 15% taller/thinner enemies, twitching heads: kept.
+- Model slots: `Model_Slot(name, height, yawOffset)` loads `assets/models/<name>.glb` once
+  (LoadModel + LoadModelAnimations), scales it to the role height by its bounding box, feet on the
+  floor, assigns the world shader; animations are matched by keyword (idle, walk/run,
+  attack/cast, hit, death; missing -> idle). Every code-built character checks its slot first.
+  `assets/models/README.txt` lists the file names (relic slots are used by item 13).
+- HUD: the minimap hides during Master Oren's dialogue; the controls hint and friends' text box
+  moved left so they never cover the minimap.

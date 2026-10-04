@@ -215,13 +215,13 @@ void UI_DrawHUD(const Game *g)
     DrawCircle(SCREEN_W / 2, SCREEN_H / 2, 2.5f, (Color){ 230, 30, 30, 230 });
     DrawChestPrompt(g);
     DrawBossBar(g);
-    Minimap_Draw(g);
+    if (g->state != STATE_DIALOGUE) Minimap_Draw(g);
     if (g->sanctum && g->state == STATE_PLAYING) {
         if (g->talkNpc >= 0) {
             const Npc *n = &g->npcs[g->talkNpc];
-            DrawRectangleRounded((Rectangle){ 190, SCREEN_H - 150, 900, 90 }, 0.15f, 6, (Color){ 20, 12, 6, 200 });
-            UI_Text(true, n->name, 220, SCREEN_H - 145, 34, COL_GOLD);
-            UI_Text(false, n->line, 220, SCREEN_H - 108, 30, COL_BONE);
+            DrawRectangleRounded((Rectangle){ 90, SCREEN_H - 150, 900, 90 }, 0.15f, 6, (Color){ 20, 12, 6, 200 });
+            UI_Text(true, n->name, 120, SCREEN_H - 145, 34, COL_GOLD);
+            UI_Text(false, n->line, 120, SCREEN_H - 108, 30, COL_BONE);
         }
         if (g->nearOren) UI_TextCentered(false, "[E] Speak with Master Oren", SCREEN_W * 0.5f, SCREEN_H * 0.5f + 60, 32, COL_GOLD);
     }
@@ -230,8 +230,8 @@ void UI_DrawHUD(const Game *g)
     /* controls hint during the first seconds of wing 1 */
     if (g->wing == 0 && g->wingTime < CONTROLS_HINT_TIME) {
         float a = Clamp01((CONTROLS_HINT_TIME - g->wingTime) / 2.0f);
-        DrawRectangle(0, SCREEN_H - 50, SCREEN_W, 50, Alpha((Color){ 0, 0, 0, 150 }, a));
-        UI_TextCentered(false, CONTROLS_TEXT, SCREEN_W * 0.5f, SCREEN_H - 42, 24, Alpha(COL_BONE, a));
+        DrawRectangle(0, SCREEN_H - 50, (int)(SCREEN_W - MINIMAP_W - 30), 50, Alpha((Color){ 0, 0, 0, 150 }, a));
+        UI_TextCentered(false, CONTROLS_TEXT, (SCREEN_W - MINIMAP_W - 30) * 0.5f, SCREEN_H - 40, 20, Alpha(COL_BONE, a));
     }
     if (g->debug) {
         UI_Text(false, TextFormat("DEBUG  pos %.1f %.1f  cell %d %d  enemies %d  F3 god  F4 skip wing",

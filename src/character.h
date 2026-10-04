@@ -1,6 +1,5 @@
-/* character.h - blocky humanoid models built from boxes, plus their animations.
- * Every body part is the same unit cube mesh drawn with its own transform matrix
- * (scale x joint rotation x translation) and tint color. */
+/* character.h - code-built low-poly characters (robes, cylinders, spheres, cones) and their
+ * animations, plus "model slots": a .glb file in assets/models/ replaces the code-built look. */
 #ifndef CHARACTER_H
 #define CHARACTER_H
 
@@ -21,6 +20,17 @@ typedef struct {
     float   headYaw;      /* twitch: sudden head turn */
     float   headRoll;     /* twitch: sudden head tilt */
 } CharPose;
+
+/* Roles that can be replaced by assets/models/<name>.glb (see assets/models/README.txt). */
+enum { ROLE_PLAYER = 0, ROLE_MONK, ROLE_WRAITH, ROLE_PRIEST, ROLE_ABBOT, ROLE_SERPENT, ROLE_OREN, ROLE_APPRENTICE, ROLE_COUNT };
+/* Animations looked up by keyword in a model's animation names; missing ones use idle. */
+enum { ANIM_IDLE = 0, ANIM_WALK, ANIM_ATTACK, ANIM_HIT, ANIM_DEATH, ANIM_COUNT };
+
+/* Load assets/models/<name>.glb once, scaled to `height` (feet on the floor). Returns a slot
+ * index, or -1 if the file is missing/invalid (then use the code-built look). */
+int  Model_Slot(const char *name, float height, float yawOffset);
+/* Draw a loaded model slot at pos/yaw playing animation `anim` (ANIM_*). False if no model. */
+bool Model_Draw(int slot, Vector3 pos, float yaw, int anim, float time, Color tint);
 
 void Character_Init(void);                 /* needs the texture atlas (Textures_Init first) */
 void Character_Shutdown(void);

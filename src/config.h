@@ -209,6 +209,19 @@
 #define LIGHTNING_STORMY    0.45f       /* wing 5: intervals x this (frequent lightning) */
 #define DUST_PER_WINDOW     6           /* drifting dust motes in each moonlight shaft */
 
+/* ---------------------------------------------------------- model slots */
+#define MAX_MODEL_SLOTS     16
+#define MODEL_YAW_OFFSET    0.0f        /* turn imported models if they face the wrong way */
+#define ROLE_H_PLAYER       1.75f       /* heights models are scaled to */
+#define ROLE_H_MONK         2.0f
+#define ROLE_H_WRAITH       2.0f
+#define ROLE_H_PRIEST       2.1f
+#define ROLE_H_ABBOT        3.6f
+#define ROLE_H_SERPENT      1.2f
+#define ROLE_H_OREN         1.8f
+#define ROLE_H_APPRENTICE   1.7f
+#define ROLE_H_RELIC        0.5f
+
 /* ----------------------------------------------------------------- audio */
 #define MASTER_VOLUME       0.9f
 #define AMBIENCE_FILE       "assets/audio/dungeon_ambient_1.ogg"
