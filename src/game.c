@@ -176,8 +176,8 @@ bool Game_LoadWing(Game *g, int wing)
     g->chestsOpened = 0;
     g->useChest = -1;
     g->useHold = 0.0f;
-    g->queenDead = false;
-    g->queenAlerted = false;
+    g->abbotDead = false;
+    g->abbotAlerted = false;
 
     /* player (full hearts at the start of every wing) */
     Player_Init(&g->player, g->world.start, g->world.startYaw);
@@ -186,6 +186,10 @@ bool Game_LoadWing(Game *g, int wing)
     g->checkpointYaw = g->world.startYaw;
     CameraRig_Init(&g->rig, g->world.startYaw);
     CameraRig_Update(&g->rig, &g->player, &g->world, NULL, 1.0f);
+
+    Atmos_Reset(&g->atmos, g->world.start);
+    g->tollTimer = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
+    g->torchFlare = 0.0f;
 
     g->bannerCount = 0;
     PushBanner(g, TextFormat("%s \xE2\x80\x94 %s", Game_WingTitle(wing), g->world.name),
@@ -225,8 +229,8 @@ static void CheckWingComplete(Game *g)
 {
     bool lastWing = g->wing == WING_COUNT - 1;
     if (g->world.exitOpen || g->chestsOpened < g->world.chestCount) return;
-    if (lastWing && !g->queenDead) {
-        PushBanner(g, "The Witch Queen still bars the gate...", "Destroy her to escape", COL_BLOOD, BANNER_TIME);
+    if (lastWing && !g->abbotDead) {
+        PushBanner(g, "The Red Abbot still guards the last bell...", "Destroy him to break it", COL_BLOOD, BANNER_TIME);
         return;
     }
     g->world.exitOpen = true;
@@ -353,13 +357,13 @@ static void HurtPlayer(Game *g, Vector3 from)
 /* Height of an enemy's chest (where the lightning aims) and how big a target it is. */
 static Vector3 EnemyChest(const Enemy *e)
 {
-    float y = e->type == EN_QUEEN ? 1.9f : (e->type == EN_GHOST ? 1.4f : 1.1f);
+    float y = e->type == EN_ABBOT ? 1.9f : (e->type == EN_WRAITH ? 1.4f : 1.1f);
     return (Vector3){ e->pos.x, y, e->pos.z };
 }
 
 static float EnemyRadius(const Enemy *e)
 {
-    return e->type == EN_QUEEN ? 0.95f : e->size * 0.5f + 0.3f;
+    return e->type == EN_ABBOT ? 0.95f : e->size * 0.5f + 0.3f;
 }
 
 /* Damage one enemy with the wand (sparks, sounds, death, the Queen's fall). */
@@ -368,15 +372,15 @@ static void DamageEnemy(Game *g, Enemy *e)
     Vector3 fx = EnemyChest(e);
     Audio_Play(SND_HIT, 1.0f);
     if (Enemy_Hurt(e, WAND_DAMAGE, g->player.pos)) {
-        Color bits = e->type == EN_SKELETON ? (Color){ 222, 214, 192, 255 }
-                   : e->type == EN_GHOST    ? (Color){ 196, 218, 255, 255 } : (Color){ 150, 60, 200, 255 };
+        Color bits = e->type == EN_MONK   ? (Color){ 255, 110, 30, 255 }      /* embers */
+                   : e->type == EN_WRAITH ? (Color){ 210, 208, 214, 255 } : (Color){ 160, 14, 24, 255 };
         g->enemiesSlain++;
         Audio_Play(SND_DEATH, 1.0f);
-        SpawnParticles(g, fx, e->type == EN_QUEEN ? 80 : 30, bits, 2.6f, 0.09f, 1.6f);
-        if (e->type == EN_QUEEN) {
-            g->queenDead = true;
+        SpawnParticles(g, fx, e->type == EN_ABBOT ? 80 : 30, bits, 2.6f, 0.09f, 1.6f);
+        if (e->type == EN_ABBOT) {
+            g->abbotDead = true;
             Shake(g, 1.0f);
-            PushBanner(g, "The Witch Queen is destroyed!", "", COL_GOLD, BANNER_TIME);
+            PushBanner(g, "The Red Abbot is destroyed!", "", COL_GOLD, BANNER_TIME);
             CheckWingComplete(g);
         }
     }
@@ -429,7 +433,7 @@ static void CastLightning(Game *g, const Input *in)
             if (b->active && Vector3Distance(b->pos, p) < 0.4f) {
                 b->active = false;
                 Audio_Play(SND_BOLT_HIT, 1.0f);
-                SpawnParticles(g, b->pos, 12, (Color){ 255, 120, 40, 255 }, 1.5f, 0.05f, 0.6f);
+                SpawnParticles(g, b->pos, 12, (Color){ 255, 130, 30, 255 }, 1.5f, 0.05f, 0.6f);
             }
         }
         for (i = 0; i < g->enemyCount; i++) {
@@ -472,13 +476,13 @@ static void ApplyEnemyEvents(Game *g, const EnemyEvents *ev)
             Enemy *e;
             if (g->enemyCount >= MAX_ENEMIES) break;
             e = &g->enemies[g->enemyCount++];
-            Enemy_Spawn(e, EN_GHOST, p, 0.0f, &WINGS[g->wing]);
+            Enemy_Spawn(e, EN_WRAITH, p, 0.0f, &WINGS[g->wing]);
             e->alerted = true;
             e->scared = true;
             SpawnParticles(g, (Vector3){ p.x, 1.0f, p.z }, 25, (Color){ 196, 218, 255, 255 }, 2.0f, 0.07f, 1.2f);
         }
         Audio_Play(SND_SCARE, 0.8f);
-        PushBanner(g, "The Queen summons her dead!", "", COL_BLOOD, BANNER_TIME);
+        PushBanner(g, "The Abbot summons his choir!", "", COL_BLOOD, BANNER_TIME);
     }
 }
 
@@ -494,7 +498,7 @@ static void UpdateEnemies(Game *g, float dt)
     env.lightRadius = WINGS[g->wing].playerLightRadius;
     for (i = 0; i < g->enemyCount; i++) {
         Enemy_Update(&g->enemies[i], &env, g->bolts, &ev, dt);
-        if (g->enemies[i].alive && g->enemies[i].type == EN_QUEEN && g->enemies[i].alerted) g->queenAlerted = true;
+        if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT && g->enemies[i].alerted) g->abbotAlerted = true;
     }
     Enemies_Separate(g->enemies, g->enemyCount, &g->world, g->player.pos);
     Bolts_Update(g->bolts, &g->world, g->player.pos, &ev, dt);
@@ -508,8 +512,8 @@ static void CompleteWing(Game *g)
     for (i = 0; i < g->world.chestCount; i++)
         if (!g->chestOpened[i]) { g->chestOpened[i] = true; g->found[g->wing][i] = true; g->chestsOpened++; }
     for (i = 0; i < g->enemyCount; i++)
-        if (g->enemies[i].alive && g->enemies[i].type == EN_QUEEN) { g->enemies[i].alive = false; g->queenDead = true; }
-    g->queenDead = g->queenDead || g->wing == WING_COUNT - 1;
+        if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT) { g->enemies[i].alive = false; g->abbotDead = true; }
+    g->abbotDead = g->abbotDead || g->wing == WING_COUNT - 1;
     CheckWingComplete(g);
     g->world.exitOpen = true;
     g->leaving = true;
@@ -552,6 +556,15 @@ static void UpdatePlaying(Game *g, const Input *in, float dt)
     UpdateChests(g, in, dt);
     UpdateExit(g, dt);
     UpdateParticles(g, dt);
+
+    /* a distant bell tolls: the screen pulses red and the torches flare */
+    g->tollTimer -= dt;
+    if (g->tollTimer <= 0.0f) {
+        g->tollTimer = BELL_TOLL_MIN + (BELL_TOLL_MAX - BELL_TOLL_MIN) * GetRandomValue(0, 100) / 100.0f;
+        Audio_Play(SND_BELL, 1.0f);
+        g->redPulse = fmaxf(g->redPulse, 0.6f);
+        g->torchFlare = 1.0f;
+    }
 }
 
 /* Keyboard (W/S, arrows, Enter) and mouse (hover, click) menu navigation.
@@ -624,6 +637,8 @@ void Game_Update(Game *g, const Input *in, float dt)
     if (in->showFps) g->showFps = !g->showFps;
     if (in->togglePost) Post_Toggle();
     if (g->redPulse > 0.0f) g->redPulse = fmaxf(0.0f, g->redPulse - dt * 1.5f);
+    if (g->torchFlare > 0.0f) g->torchFlare = fmaxf(0.0f, g->torchFlare - dt * 0.8f);
+    if (g->worldLoaded) Atmos_Update(&g->atmos, g->rig.cam.position, &g->world, dt);
     if (g->shake > 0.0f) g->shake = fmaxf(0.0f, g->shake - SHAKE_DECAY * dt);
     if (g->hurtFlash > 0.0f) g->hurtFlash -= dt;
 
@@ -757,6 +772,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     Vector3 lightAt = showPlayer ? g->player.pos
                                  : (Vector3){ cam.position.x, cam.position.y - PLAYER_LIGHT_HEIGHT, cam.position.z };
 
+    Render_SetFlare(g->torchFlare);
     Render_BeginFrame(&WINGS[g->wing], cam, lightAt, g->time);
     if (g->beamTime > 0.0f) {
         float f = g->beamTime / BEAM_TIME;
@@ -777,7 +793,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     for (i = 0; i < g->enemyCount; i++) {
         const Enemy *e = &g->enemies[i];
         if (!e->alive) continue;
-        if (e->type == EN_GHOST) {
+        if (e->type == EN_WRAITH) {
             ghosts[nGhosts].index = i;
             ghosts[nGhosts].dist = Vector3Distance(cam.position, e->pos);
             nGhosts++;
@@ -787,6 +803,7 @@ static void DrawScene(Game *g, Camera3D cam, bool showPlayer)
     }
     Bolts_Draw(g->bolts);
     DrawBeam(g);
+    Atmos_Draw(&g->atmos);
     for (i = 0; i < MAX_PARTICLES; i++) {
         const Particle *p = &g->particles[i];
         float s = p->size * fminf(1.0f, p->life / (p->maxLife * 0.5f + 0.001f));
@@ -908,14 +925,14 @@ static int FlowTest(Game *g)
     Game_NewGame(g, 0);
     g->player.god = true;
     e = &g->enemies[0];
-    Enemy_Spawn(e, EN_SKELETON, Vector3Add(g->player.pos, (Vector3){ 1.0f, 0.0f, 0.8f }), 0.0f, &WINGS[0]);
+    Enemy_Spawn(e, EN_MONK, Vector3Add(g->player.pos, (Vector3){ 1.0f, 0.0f, 0.8f }), 0.0f, &WINGS[0]);
     g->enemyCount = 1;
     slain = g->enemiesSlain;
     in = none;
     in.swing = true;
     Frame(g, &in, 1.0f / 60.0f, false);
     Simulate(g, &none, WAND_COOLDOWN + 0.1f);
-    fails += Check(e->hp == SKELETON_HP - 1, "red lightning (aim assist) damages a skeleton");
+    fails += Check(e->hp == MONK_HP - 1, "red lightning (aim assist) damages a skeleton");
     e->pos = Vector3Add(g->player.pos, (Vector3){ -0.9f, 0.0f, -0.9f });
     Frame(g, &in, 1.0f / 60.0f, false);
     Simulate(g, &none, WAND_COOLDOWN + 0.1f);
@@ -931,7 +948,7 @@ static int FlowTest(Game *g)
     g->player.hearts = 1;
     g->player.invuln = 0.0f;
     e = &g->enemies[0];
-    Enemy_Spawn(e, EN_SKELETON, Vector3Add(g->player.pos, (Vector3){ 1.0f, 0.0f, 0.0f }), 0.0f, &WINGS[0]);
+    Enemy_Spawn(e, EN_MONK, Vector3Add(g->player.pos, (Vector3){ 1.0f, 0.0f, 0.0f }), 0.0f, &WINGS[0]);
     e->alerted = true;
     g->enemyCount = 1;
     for (i = 0; i < 300 && g->state == STATE_PLAYING; i++) Frame(g, &none, 1.0f / 60.0f, false);
@@ -956,7 +973,7 @@ static int BalanceTest(Game *g)
     g->enemyCount = 2;
     for (i = 0; i < 2; i++) {
         Vector3 p = Vector3Add(g->player.pos, (Vector3){ i ? 2.5f : -2.5f, 0.0f, -2.0f });
-        Enemy_Spawn(&g->enemies[i], EN_SKELETON, p, 0.0f, &WINGS[0]);
+        Enemy_Spawn(&g->enemies[i], EN_MONK, p, 0.0f, &WINGS[0]);
         g->enemies[i].alerted = true;
     }
     in.swing = true;
@@ -979,7 +996,7 @@ static void LightningShot(Game *g)
     g->bannerCount = 0;
     fwd = (Vector3){ sinf(g->rig.yaw), 0.0f, cosf(g->rig.yaw) };
     g->enemyCount = 1;
-    Enemy_Spawn(&g->enemies[0], EN_SKELETON, Vector3Add(g->player.pos, Vector3Add(Vector3Scale(fwd, 6.0f), (Vector3){ 1.2f, 0, 0 })),
+    Enemy_Spawn(&g->enemies[0], EN_MONK, Vector3Add(g->player.pos, Vector3Add(Vector3Scale(fwd, 6.0f), (Vector3){ 1.2f, 0, 0 })),
                 g->rig.yaw + PI, &WINGS[0]);
     g->enemies[0].hp = 99;                      /* survives so it is in the picture */
     Simulate(g, &in, 1.2f);                     /* let the fade-in finish */
@@ -999,7 +1016,7 @@ static int QueenTest(Game *g)
     printf("\nqueen test (wing 5):\n");
     Game_NewGame(g, WING_COUNT - 1);
     g->player.god = true;
-    for (i = 0; i < g->enemyCount; i++) if (g->enemies[i].type == EN_QUEEN) queen = &g->enemies[i];
+    for (i = 0; i < g->enemyCount; i++) if (g->enemies[i].type == EN_ABBOT) queen = &g->enemies[i];
     fails += Check(queen != NULL, "the Witch Queen is in the throne room");
     if (!queen) return fails;
     for (i = 0; i < g->world.chestCount; i++) OpenChest(g, i);
@@ -1017,10 +1034,10 @@ static int QueenTest(Game *g)
             g->player.pos = Vector3Add(queen->pos, (Vector3){ 0.0f, 0.0f, 1.4f });
             queen->visible = true;
         }
-        if (safety == 0) fails += Check(g->queenAlerted, "the boss bar appears once she is alerted");
+        if (safety == 0) fails += Check(g->abbotAlerted, "the boss bar appears once she is alerted");
     }
     fails += Check(g->enemyCount == before + 2, "at half health she summons two ghosts");
-    fails += Check(!queen->alive && g->queenDead, "the Queen can be destroyed");
+    fails += Check(!queen->alive && g->abbotDead, "the Queen can be destroyed");
     fails += Check(g->world.exitOpen, "the manor gate opens");
     StandNextTo(g, g->world.exits[0]);
     in = none;
@@ -1040,7 +1057,7 @@ static void BossShot(Game *g)
     g->player.god = true;
     for (i = 0; i < g->enemyCount; i++) {
         Enemy *e = &g->enemies[i];
-        if (e->type != EN_QUEEN) { e->alive = false; continue; }
+        if (e->type != EN_ABBOT) { e->alive = false; continue; }
         g->player.pos = Vector3Add(e->pos, (Vector3){ 0.0f, 0.0f, 5.0f });
         g->player.yaw = g->rig.yaw = PI;
         e->alerted = true;
@@ -1056,7 +1073,7 @@ static void BossShot(Game *g)
 /* Every enemy type standing in front of the player (camera behind the player). */
 static void EnemyShowcase(Game *g)
 {
-    static const EnemyType types[4] = { EN_SKELETON, EN_GHOST, EN_WITCH, EN_QUEEN };
+    static const EnemyType types[4] = { EN_MONK, EN_WRAITH, EN_PRIEST, EN_ABBOT };
     static const float offs[4] = { -2.6f, -0.9f, 0.7f, 2.6f };
     Vector3 base = g->player.pos;
     float yaw = g->world.startYaw;
@@ -1067,14 +1084,14 @@ static void EnemyShowcase(Game *g)
     g->enemyCount = 4;
     for (i = 0; i < 4; i++) {
         Enemy *e = &g->enemies[i];
-        Vector3 p = Vector3Add(Vector3Add(base, Vector3Scale(fwd, types[i] == EN_QUEEN ? 4.6f : 3.4f)), Vector3Scale(right, offs[i]));
+        Vector3 p = Vector3Add(Vector3Add(base, Vector3Scale(fwd, types[i] == EN_ABBOT ? 4.6f : 3.4f)), Vector3Scale(right, offs[i]));
         Enemy_Spawn(e, types[i], p, yaw + PI, &WINGS[g->wing]);
         e->alerted = true;
         e->visible = true;
         e->time = 0.4f * i;
     }
     g->enemies[2].attack = ATK_BOLT;           /* show the red wind-up glow on the witch */
-    g->enemies[2].windup = WITCH_WINDUP * 0.8f;
+    g->enemies[2].windup = PRIEST_WINDUP * 0.8f;
     g->player.yaw = yaw;
 
     cam.position = Vector3Add(Vector3Subtract(base, Vector3Scale(fwd, 1.6f)), (Vector3){ 0, 2.1f, 0 });
@@ -1089,7 +1106,7 @@ static void EnemyShowcase(Game *g)
     Post_EndScene();
     Screen_Begin();
     Post_Draw(g->time, 0, 0.0f);
-    UI_TextCentered(false, "Skeleton  -  Ghost  -  Witch (winding up)  -  The Witch Queen", SCREEN_W * 0.5f, 16, 30, COL_BONE);
+    UI_TextCentered(false, "Ashen Monk  -  Choir Wraith  -  Ember Priest (winding up)  -  The Red Abbot", SCREEN_W * 0.5f, 16, 30, COL_BONE);
     Screen_End();
 }
 

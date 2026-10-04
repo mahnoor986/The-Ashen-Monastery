@@ -17,18 +17,20 @@ typedef struct {
     float   flash;        /* hit flash 0..1 (white tint) */
     float   blink;        /* 1 = hide this frame (invulnerability blink) */
     float   alpha;        /* 0..1 opacity (ghosts); 0 is treated as 1 */
-    bool    alerted;      /* enemy has noticed the player (eyes glow) */
+    bool    alerted;      /* enemy has noticed the player */
+    float   headYaw;      /* twitch: sudden head turn */
+    float   headRoll;     /* twitch: sudden head tilt */
 } CharPose;
 
 void Character_Init(void);                 /* needs the texture atlas (Textures_Init first) */
 void Character_Shutdown(void);
 void Character_SetShader(Shader shader);   /* use the world shader so fog/light apply */
 void Character_DrawKnight(const CharPose *p);
-void Character_DrawSkeleton(const CharPose *p);
-void Character_DrawGhost(const CharPose *p);      /* draw in the transparent pass */
-void Character_DrawWitch(const CharPose *p);
-void Character_DrawQueen(const CharPose *p);      /* 1.8x witch with a crown and two orbiting orbs */
-/* A glowing hex bolt (spinning purple cube) at `pos`. */
+void Character_DrawMonk(const CharPose *p);       /* Ashen Monk: charred hooded robe, ember cracks */
+void Character_DrawWraith(const CharPose *p);     /* Choir Wraith: draw in the transparent pass */
+void Character_DrawPriest(const CharPose *p);     /* Ember Priest: crimson robe, tall hood, censer */
+void Character_DrawAbbot(const CharPose *p);      /* The Red Abbot: 1.8x, bell mitre, two fireballs */
+/* A fireball (spinning orange cube) at `pos`. */
 void Character_DrawBolt(Vector3 pos, float spin);
 
 #endif

@@ -177,11 +177,11 @@ static void DrawBossBar(const Game *g)
     const Enemy *queen = NULL;
     int i;
     float w = 640.0f, x = (SCREEN_W - w) * 0.5f, y = SCREEN_H - 64.0f;
-    if (!g->queenAlerted) return;
+    if (!g->abbotAlerted) return;
     for (i = 0; i < g->enemyCount; i++)
-        if (g->enemies[i].alive && g->enemies[i].type == EN_QUEEN) queen = &g->enemies[i];
+        if (g->enemies[i].alive && g->enemies[i].type == EN_ABBOT) queen = &g->enemies[i];
     if (!queen) return;
-    UI_TextCentered(true, "The Witch Queen", SCREEN_W * 0.5f, y - 44, 38, COL_BLOOD);
+    UI_TextCentered(true, "THE RED ABBOT", SCREEN_W * 0.5f, y - 44, 38, COL_BLOOD);
     DrawRectangle((int)x - 3, (int)y - 3, (int)w + 6, 22, (Color){ 0, 0, 0, 200 });
     DrawRectangle((int)x, (int)y, (int)(w * queen->hp / (float)queen->maxHp), 16, COL_BLOOD);
     DrawRectangleLinesEx((Rectangle){ x - 3, y - 3, w + 6, 22 }, 2, COL_GOLD);

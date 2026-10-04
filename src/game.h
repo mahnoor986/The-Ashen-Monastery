@@ -9,6 +9,7 @@
 #include "player.h"
 #include "enemy.h"
 #include "input.h"
+#include "atmos.h"
 
 typedef enum {
     STATE_MENU = 0,       /* title screen over the slowly orbiting manor */
@@ -62,8 +63,8 @@ typedef struct Game {
     int       enemiesSlain;
     float     playTime;
     int       savedWing;               /* highest unlocked wing from save.txt (1-based), 0 = none */
-    bool      queenDead;
-    bool      queenAlerted;
+    bool      abbotDead;
+    bool      abbotAlerted;
     bool      ghostHintShown;          /* "ghosts can only be hurt in the light" */
 
     /* presentation */
@@ -72,6 +73,9 @@ typedef struct Game {
     float     shake;                   /* camera shake 0..1 */
     float     hurtFlash;
     float     redPulse;                /* 0..1 full-screen red flash (bells) */
+    Atmos     atmos;                   /* falling ash + rising embers */
+    float     tollTimer;               /* seconds until the next distant bell toll */
+    float     torchFlare;              /* 0..1 torches flare up when the bell tolls */
     float     beamTime;                /* > 0 while the red lightning is visible */
     Vector3   beamEnd;                 /* where the lightning struck */
     float     fade;                    /* black overlay 0..1 */

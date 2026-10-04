@@ -18,6 +18,8 @@ typedef enum {
     SND_DEATH,       /* enemy crumbles */
     SND_CLICK,       /* menu click */
     SND_DASH,        /* dash */
+    SND_BELL,        /* distant bell toll (generated in code) */
+    SND_BELL_BREAK,  /* a cursed bell shatters (generated in code) */
     SND_COUNT
 } SoundId;
 

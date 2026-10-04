@@ -9,6 +9,7 @@
 #define SHADER_VS "assets/shaders/world.vs"
 #define SHADER_FS "assets/shaders/world.fs"
 
+static float    flare;        /* 0..1 torch flare when a bell tolls */
 static Shader   shader;       /* module-private GPU resources */
 static bool     hasShader;
 static Material worldMat;
@@ -118,7 +119,7 @@ void Render_BeginFrame(const WingConfig *wing, Camera3D cam, Vector3 playerPos, 
         Vector2 snap = { PS1_WOBBLE ? PS1_WOBBLE_GRID_W : 0.0f, PS1_WOBBLE_GRID_H };
         SetShaderValue(shader, locSnap, &snap, SHADER_UNIFORM_VEC2);
     }
-    SetF(locFlicker, Render_Flicker(time));
+    SetF(locFlicker, Render_Flicker(time) * (1.0f + 0.7f * flare));
     SetV3(locLightPos, (Vector3){ playerPos.x, playerPos.y + PLAYER_LIGHT_HEIGHT, playerPos.z });
     SetF(locLightRadius, wing->playerLightRadius);
     SetV3(locLightColor, (Vector3){ PLAYER_LIGHT_R, PLAYER_LIGHT_G, PLAYER_LIGHT_B });
@@ -152,7 +153,17 @@ void Render_UseEntityLight(Vector3 light)
 
 void Render_SetEmissive(bool on)
 {
-    if (hasShader) SetF(locEmissive, on ? 1.0f : 0.0f);
+    Render_SetEmissiveMode(on ? 1 : 0);
+}
+
+void Render_SetEmissiveMode(int mode)
+{
+    if (hasShader) SetF(locEmissive, (float)mode);
+}
+
+void Render_SetFlare(float amount)
+{
+    flare = amount;
 }
 
 void Render_DrawWorld(const World *w, float time)
@@ -177,7 +188,7 @@ void Render_DrawWorld(const World *w, float time)
     /* torch flames: small glowing cubes that flicker in size (raylib's default shader = unlit) */
     for (i = 0; i < w->torchCount; i++) {
         Vector3 p = w->torches[i].pos;
-        float f = 1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i);
+        float f = (1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i)) * (1.0f + 0.9f * flare);
         DrawCube((Vector3){ p.x, p.y + 0.02f, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
         DrawCube((Vector3){ p.x, p.y + 0.0f, p.z }, 0.08f, 0.12f * f, 0.08f, (Color){ 255, 236, 150, 255 });
     }

@@ -15,17 +15,17 @@ static float Rand01(void) { return GetRandomValue(0, 1000) / 1000.0f; }
 
 const char *Enemy_Name(EnemyType type)
 {
-    static const char *names[EN_TYPE_COUNT] = { "Skeleton", "Ghost", "Witch", "The Witch Queen" };
+    static const char *names[EN_TYPE_COUNT] = { "Ashen Monk", "Choir Wraith", "Ember Priest", "The Red Abbot" };
     return ((int)type >= 0 && type < EN_TYPE_COUNT) ? names[type] : "?";
 }
 
 EnemyType Enemy_TypeFromChar(char c)
 {
     switch (c) {
-    case 'g': return EN_GHOST;
-    case 'w': return EN_WITCH;
-    case 'Q': return EN_QUEEN;
-    default:  return EN_SKELETON;
+    case 'g': return EN_WRAITH;
+    case 'w': return EN_PRIEST;
+    case 'Q': return EN_ABBOT;
+    default:  return EN_MONK;
     }
 }
 
@@ -43,12 +43,12 @@ void Enemy_Spawn(Enemy *e, EnemyType type, Vector3 pos, float yaw, const WingCon
     e->strafeDir = (Rand01() < 0.5f) ? -1.0f : 1.0f;
     e->moanTimer = 3.0f + Rand01() * 6.0f;
     switch (type) {
-    case EN_SKELETON: e->hp = SKELETON_HP; e->speed = SKELETON_SPEED; e->sight = SKELETON_SIGHT; e->reach = SKELETON_REACH; break;
-    case EN_GHOST:    e->hp = GHOST_HP;    e->speed = GHOST_SPEED;    e->sight = GHOST_SIGHT;    e->reach = GHOST_REACH; break;
-    case EN_WITCH:    e->hp = WITCH_HP;    e->speed = WITCH_SPEED;    e->sight = WITCH_SIGHT;    e->reach = 0.0f;
+    case EN_MONK: e->hp = MONK_HP; e->speed = MONK_SPEED; e->sight = MONK_SIGHT; e->reach = MONK_REACH; break;
+    case EN_WRAITH:    e->hp = WRAITH_HP;    e->speed = WRAITH_SPEED;    e->sight = WRAITH_SIGHT;    e->reach = WRAITH_REACH; break;
+    case EN_PRIEST:    e->hp = PRIEST_HP;    e->speed = PRIEST_SPEED;    e->sight = PRIEST_SIGHT;    e->reach = 0.0f;
                       e->fireTimer = 1.0f; break;
-    case EN_QUEEN:    e->hp = QUEEN_HP;    e->speed = QUEEN_SPEED;    e->sight = QUEEN_SIGHT;    e->reach = QUEEN_REACH;
-                      e->size = QUEEN_SIZE; e->ringTimer = QUEEN_RING_TIME; break;
+    case EN_ABBOT:    e->hp = ABBOT_HP;    e->speed = ABBOT_SPEED;    e->sight = ABBOT_SIGHT;    e->reach = ABBOT_REACH;
+                      e->size = ABBOT_SIZE; e->ringTimer = ABBOT_RING_TIME; break;
     default: break;
     }
     e->maxHp = e->hp;
@@ -70,7 +70,7 @@ void Enemy_ResetToSpawn(Enemy *e)
 
 bool Enemy_CanBeHurt(const Enemy *e)
 {
-    return e->alive && (e->type != EN_GHOST || e->visible);
+    return e->alive && (e->type != EN_WRAITH || e->visible);
 }
 
 bool Enemy_Hurt(Enemy *e, int damage, Vector3 from)
@@ -83,16 +83,16 @@ bool Enemy_Hurt(Enemy *e, int damage, Vector3 from)
     away = Vector3Subtract(e->pos, from);
     away.y = 0.0f;
     if (Vector3Length(away) > 0.01f)
-        e->knock = Vector3Scale(Vector3Normalize(away), WAND_KNOCKBACK * (e->type == EN_QUEEN ? QUEEN_KNOCK_MUL : 1.0f));
-    if (e->type != EN_QUEEN) e->windup = -1.0f;   /* a hit staggers normal enemies */
+        e->knock = Vector3Scale(Vector3Normalize(away), WAND_KNOCKBACK * (e->type == EN_ABBOT ? ABBOT_KNOCK_MUL : 1.0f));
+    if (e->type != EN_ABBOT) e->windup = -1.0f;   /* a hit staggers normal enemies */
     if (e->hp <= 0) { e->alive = false; return true; }
     return false;
 }
 
 static float WindupTime(const Enemy *e)
 {
-    if (e->attack == ATK_BOLT) return WITCH_WINDUP;
-    if (e->type == EN_QUEEN) return QUEEN_WINDUP;
+    if (e->attack == ATK_BOLT) return PRIEST_WINDUP;
+    if (e->type == EN_ABBOT) return ABBOT_WINDUP;
     return ENEMY_WINDUP;
 }
 
@@ -110,7 +110,7 @@ static void ResolveAttack(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvent
             ev->playerHits++;
             ev->hitFrom = e->pos;
         }
-        e->cooldown = e->type == EN_QUEEN ? QUEEN_COOLDOWN : (e->type == EN_GHOST ? GHOST_COOLDOWN : SKELETON_COOLDOWN);
+        e->cooldown = e->type == EN_ABBOT ? ABBOT_COOLDOWN : (e->type == EN_WRAITH ? WRAITH_COOLDOWN : MONK_COOLDOWN);
         break;
     case ATK_BOLT: {
         Vector3 aim = Vector3Subtract((Vector3){ env->playerPos.x, BOLT_HEIGHT, env->playerPos.z }, hand);
@@ -147,16 +147,26 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
     if (e->flash > 0.0f) e->flash -= dt;
     if (e->cooldown > 0.0f) e->cooldown -= dt;
 
+    /* twitching: now and then the head snaps to a random angle for a split second */
+    if (e->twitchTime > 0.0f) e->twitchTime -= dt;
+    e->twitchTimer -= dt;
+    if (e->twitchTimer <= 0.0f) {
+        e->twitchTime = 0.08f + Rand01() * 0.07f;
+        e->twitchYaw = (Rand01() * 2.0f - 1.0f) * 1.1f;
+        e->twitchRoll = (Rand01() * 2.0f - 1.0f) * 0.5f;
+        e->twitchTimer = 0.6f + Rand01() * 1.9f;
+    }
+
     to = Vector3Subtract(env->playerPos, e->pos);
     to.y = 0.0f;
     dist = Vector3Length(to);
     yawTo = atan2f(to.x, to.z);
 
     /* ghosts can only be hurt (and seen clearly) in the light */
-    if (e->type == EN_GHOST) {
+    if (e->type == EN_WRAITH) {
         Vector3 l = World_LightAt(w, (Vector3){ e->pos.x, 1.0f, e->pos.z });
-        e->visible = dist <= env->lightRadius * 0.85f || (l.x + l.y + l.z) / 3.0f > GHOST_LIGHT_NEEDED;
-        if (dist < GHOST_MOAN_RANGE) {
+        e->visible = dist <= env->lightRadius * 0.85f || (l.x + l.y + l.z) / 3.0f > WRAITH_LIGHT_NEEDED;
+        if (dist < WRAITH_MOAN_RANGE) {
             e->moanTimer -= dt;
             if (e->moanTimer <= 0.0f) { ev->moan = true; e->moanTimer = 7.0f + Rand01() * 8.0f; }
         }
@@ -166,7 +176,7 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
     if (!e->alerted) {
         bool notice = false;
         if (dist < e->sight) {
-            bool los = e->type == EN_GHOST ||
+            bool los = e->type == EN_WRAITH ||
                        World_LineOfSight(w, (Vector3){ e->pos.x, 1.5f, e->pos.z }, (Vector3){ env->playerPos.x, 1.5f, env->playerPos.z });
             bool inCone = fabsf(AngleDiff(e->yaw, yawTo)) < ENEMY_FOV_DEG * 0.5f * DEG2RAD;
             notice = los && (dist < ENEMY_HEAR_RANGE || inCone);
@@ -174,7 +184,7 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
         if (notice) e->alerted = true;
         else e->yaw = e->spawnYaw + sinf(e->time * 0.9f + e->seed) * 0.9f;   /* sweep the gaze */
     }
-    if (e->alerted && e->type == EN_GHOST && !e->scared && dist < GHOST_SCARE_RANGE) {
+    if (e->alerted && e->type == EN_WRAITH && !e->scared && dist < WRAITH_SCARE_RANGE) {
         e->scared = true;
         ev->scare = true;
     }
@@ -193,34 +203,39 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
             Vector3 dir = dist > 0.01f ? Vector3Scale(to, 1.0f / dist) : (Vector3){ 0 };
             e->yaw = yawTo;
             switch (e->type) {
-            case EN_SKELETON:
-            case EN_GHOST:
+            case EN_MONK:
+            case EN_WRAITH:
                 if (dist <= e->reach && e->cooldown <= 0.0f) StartWindup(e, ATK_MELEE);
-                else if (dist > e->reach * 0.75f) move = Vector3Scale(dir, e->speed);
+                else if (dist > e->reach * 0.75f) {
+                    float speed = e->speed;
+                    /* Ashen Monks lurch: a stuttering, uneven gait */
+                    if (e->type == EN_MONK) speed *= 0.45f + 0.75f * fabsf(sinf(e->time * 4.7f + e->seed));
+                    move = Vector3Scale(dir, speed);
+                }
                 break;
-            case EN_WITCH: {
+            case EN_PRIEST: {
                 Vector3 side = { -dir.z, 0.0f, dir.x };
                 e->fireTimer -= dt * env->wing->witchFireMul;
                 e->strafeTimer -= dt;
                 if (e->strafeTimer <= 0.0f) { e->strafeDir = -e->strafeDir; e->strafeTimer = 1.5f + Rand01() * 1.5f; }
-                if (dist < WITCH_MIN_DIST)      move = Vector3Scale(dir, -e->speed);
-                else if (dist > WITCH_MAX_DIST) move = Vector3Scale(dir, e->speed);
+                if (dist < PRIEST_MIN_DIST)      move = Vector3Scale(dir, -e->speed);
+                else if (dist > PRIEST_MAX_DIST) move = Vector3Scale(dir, e->speed);
                 else                            move = Vector3Scale(side, e->speed * 0.6f * e->strafeDir);
                 if (e->fireTimer <= 0.0f && dist < e->sight * 1.4f &&
                     World_LineOfSight(w, (Vector3){ e->pos.x, 1.3f, e->pos.z }, (Vector3){ env->playerPos.x, 1.3f, env->playerPos.z })) {
                     StartWindup(e, ATK_BOLT);
-                    e->fireTimer = WITCH_FIRE_TIME;
+                    e->fireTimer = PRIEST_FIRE_TIME;
                 }
                 break;
             }
-            case EN_QUEEN:
+            case EN_ABBOT:
                 e->ringTimer -= dt;
                 if (!e->summoned && e->hp <= e->maxHp / 2) {
                     e->summoned = true;
                     ev->summon = true;
                     ev->summonPos = e->pos;
                 }
-                if (e->ringTimer <= 0.0f) { StartWindup(e, ATK_RING); e->ringTimer = QUEEN_RING_TIME; }
+                if (e->ringTimer <= 0.0f) { StartWindup(e, ATK_RING); e->ringTimer = ABBOT_RING_TIME; }
                 else if (dist <= e->reach && e->cooldown <= 0.0f) StartWindup(e, ATK_MELEE);
                 else if (dist > e->reach * 0.7f) move = Vector3Scale(dir, e->speed);
                 break;
@@ -233,14 +248,14 @@ void Enemy_Update(Enemy *e, const EnemyEnv *env, Bolt *bolts, EnemyEvents *ev, f
     move = Vector3Add(move, e->knock);
     e->knock = Vector3Scale(e->knock, fmaxf(0.0f, 1.0f - 6.0f * dt));
     before = e->pos;
-    if (e->type == EN_GHOST) {
+    if (e->type == EN_WRAITH) {
         /* ghosts float through walls but stay inside the manor */
         e->pos.x = Clamp(e->pos.x + move.x * dt, 1.3f, w->w - 1.3f);
         e->pos.z = Clamp(e->pos.z + move.z * dt, 1.3f, w->h - 1.3f);
     } else {
         World_Move(w, &e->pos, e->size, Vector3Scale(move, dt));
         /* witch hit a wall while strafing: go the other way */
-        if (e->type == EN_WITCH && Vector3Distance(before, e->pos) < 0.2f * Vector3Length(move) * dt) e->strafeDir = -e->strafeDir;
+        if (e->type == EN_PRIEST && Vector3Distance(before, e->pos) < 0.2f * Vector3Length(move) * dt) e->strafeDir = -e->strafeDir;
     }
     e->walkAmount = fminf(1.0f, Vector3Distance(before, e->pos) / fmaxf(dt, 0.0001f) / 2.0f);
     e->walkPhase += Vector3Distance(before, e->pos) * 2.6f;
@@ -264,8 +279,8 @@ void Enemies_Separate(Enemy *list, int count, const World *w, Vector3 playerPos)
             minD = (a->size + b->size) * 0.5f + 0.15f;
             if (dist >= minD || dist < 0.001f) continue;
             push = Vector3Scale(d, (minD - dist) * 0.5f / dist);
-            if (a->type == EN_GHOST) a->pos = Vector3Subtract(a->pos, push); else World_Move(w, &a->pos, a->size, Vector3Negate(push));
-            if (b->type == EN_GHOST) b->pos = Vector3Add(b->pos, push);      else World_Move(w, &b->pos, b->size, push);
+            if (a->type == EN_WRAITH) a->pos = Vector3Subtract(a->pos, push); else World_Move(w, &a->pos, a->size, Vector3Negate(push));
+            if (b->type == EN_WRAITH) b->pos = Vector3Add(b->pos, push);      else World_Move(w, &b->pos, b->size, push);
         }
         /* don't stand inside the player */
         d = Vector3Subtract(a->pos, playerPos);
@@ -274,7 +289,7 @@ void Enemies_Separate(Enemy *list, int count, const World *w, Vector3 playerPos)
         minD = (a->size + PLAYER_SIZE) * 0.5f + 0.1f;
         if (dist < minD && dist > 0.001f) {
             Vector3 push = Vector3Scale(d, (minD - dist) / dist);
-            if (a->type == EN_GHOST) a->pos = Vector3Add(a->pos, push); else World_Move(w, &a->pos, a->size, push);
+            if (a->type == EN_WRAITH) a->pos = Vector3Add(a->pos, push); else World_Move(w, &a->pos, a->size, push);
         }
     }
 }
@@ -292,23 +307,29 @@ void Enemy_Draw(const Enemy *e, const World *w)
     pose.windup = e->windup >= 0.0f ? fminf(1.0f, e->windup / WindupTime(e)) : 0.0f;
     pose.flash = e->flash > 0.0f ? e->flash / 0.12f : 0.0f;
     pose.alerted = e->alerted;
-    Render_UseEntityLight(World_LightAt(w, (Vector3){ e->pos.x, 1.0f, e->pos.z }));
-    switch (e->type) {
-    case EN_SKELETON: Character_DrawSkeleton(&pose); break;
-    case EN_WITCH:    Character_DrawWitch(&pose); break;
-    case EN_QUEEN: {
-        /* the Queen glows faintly purple so she is always readable in her dark throne room */
+    if (e->twitchTime > 0.0f) { pose.headYaw = e->twitchYaw; pose.headRoll = e->twitchRoll; }
+    {
+        /* a little light of their own, so their silhouettes always read (beginners need to see them) */
         Vector3 l = World_LightAt(w, (Vector3){ e->pos.x, 1.0f, e->pos.z });
-        Render_UseEntityLight((Vector3){ fmaxf(l.x, 0.45f), fmaxf(l.y, 0.30f), fmaxf(l.z, 0.55f) });
-        Character_DrawQueen(&pose);
+        Render_UseEntityLight((Vector3){ fmaxf(l.x, ENEMY_MIN_LIGHT), fmaxf(l.y, ENEMY_MIN_LIGHT * 0.8f),
+                                         fmaxf(l.z, ENEMY_MIN_LIGHT * 0.8f) });
+    }
+    switch (e->type) {
+    case EN_MONK: Character_DrawMonk(&pose); break;
+    case EN_PRIEST:    Character_DrawPriest(&pose); break;
+    case EN_ABBOT: {
+        /* the Abbot glows faintly red so he is always readable in his dark bell tower */
+        Vector3 l = World_LightAt(w, (Vector3){ e->pos.x, 1.0f, e->pos.z });
+        Render_UseEntityLight((Vector3){ fmaxf(l.x, 1.0f), fmaxf(l.y, 0.45f), fmaxf(l.z, 0.40f) });
+        Character_DrawAbbot(&pose);
         break;
     }
-    case EN_GHOST:
+    case EN_WRAITH:
         pose.pos.y = 0.35f + 0.1f * sinf(e->time * 2.0f + e->seed);      /* floats 0.25 - 0.45 above the floor */
-        pose.alpha = e->visible ? GHOST_ALPHA : GHOST_FAINT_ALPHA;
+        pose.alpha = e->visible ? WRAITH_ALPHA : WRAITH_FAINT_ALPHA;
         if (e->windup >= 0.0f) pose.alpha = fmaxf(pose.alpha, 0.35f);    /* always show the telegraph */
-        Render_UseEntityLight((Vector3){ 0.55f, 0.6f, 0.75f });          /* ghosts glow faintly by themselves */
-        Character_DrawGhost(&pose);
+        Render_UseEntityLight((Vector3){ 0.6f, 0.6f, 0.62f });           /* wraiths glow faintly by themselves */
+        Character_DrawWraith(&pose);
         break;
     default: break;
     }

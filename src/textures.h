@@ -21,6 +21,7 @@ typedef enum {
     TILE_WHITE,            /* plain white (tinted by material color) */
     TILE_FLAME,            /* glowing yellow-orange */
     TILE_IRON,             /* plain dark iron (torch brackets) */
+    TILE_EMBER,            /* charred cloth with orange ember cracks */
     TILE_COUNT
 } TileId;
 

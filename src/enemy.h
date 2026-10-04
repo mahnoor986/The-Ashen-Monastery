@@ -1,4 +1,4 @@
-/* enemy.h - skeletons, ghosts, witches, the Witch Queen, and the witches' hex bolts.
+/* enemy.h - Ashen Monks, Choir Wraiths, Ember Priests, the Red Abbot, and the priests' fireballs.
  * Enemies don't touch the player directly: Enemy_Update reports what happened in an
  * EnemyEvents struct and the game applies damage, sounds and camera shake. */
 #ifndef ENEMY_H
@@ -8,7 +8,7 @@
 #include "config.h"
 #include "world.h"
 
-typedef enum { EN_SKELETON = 0, EN_GHOST, EN_WITCH, EN_QUEEN, EN_TYPE_COUNT } EnemyType;
+typedef enum { EN_MONK = 0, EN_WRAITH, EN_PRIEST, EN_ABBOT, EN_TYPE_COUNT } EnemyType;
 
 typedef enum { ATK_MELEE = 0, ATK_BOLT, ATK_RING } AttackKind;
 
@@ -33,7 +33,10 @@ typedef struct {
     Vector3   knock;          /* knockback velocity (decays) */
     float     flash;          /* hit flash timer */
     float     walkPhase, walkAmount, time, seed;
-    int       lastSwingId;    /* sword swing that last hit this enemy */
+    int       lastSwingId;    /* (unused since the wand) */
+    float     twitchTimer;    /* time until the next twitch */
+    float     twitchTime;     /* > 0 while the head is twisted */
+    float     twitchYaw, twitchRoll;
 } Enemy;
 
 typedef struct {

@@ -108,43 +108,44 @@
 #define ENEMY_WINDUP        0.5f        /* telegraph time before an attack lands */
 #define ENEMY_HEAR_RANGE    3.0f        /* enemies notice you this close regardless of view cone */
 #define ENEMY_FOV_DEG       110.0f      /* view cone width */
-#define SKELETON_HP         2
-#define SKELETON_SPEED      2.2f
-#define SKELETON_SIGHT      9.0f
-#define SKELETON_REACH      1.4f
-#define GHOST_HP            2
-#define GHOST_SPEED         1.6f
-#define GHOST_SIGHT         8.0f
-#define GHOST_SCARE_RANGE   7.0f
-#define GHOST_ALPHA         0.45f
-#define WITCH_HP            3
-#define WITCH_SPEED         2.0f
-#define WITCH_SIGHT         11.0f
-#define WITCH_MIN_DIST      5.0f
-#define WITCH_MAX_DIST      8.0f
-#define WITCH_FIRE_TIME     2.2f
+#define MONK_HP         2
+#define MONK_SPEED      2.2f
+#define MONK_SIGHT      9.0f
+#define MONK_REACH      1.4f
+#define WRAITH_HP            2
+#define WRAITH_SPEED         1.6f
+#define WRAITH_SIGHT         8.0f
+#define WRAITH_SCARE_RANGE   7.0f
+#define WRAITH_ALPHA         0.45f
+#define PRIEST_HP            3
+#define PRIEST_SPEED         2.0f
+#define PRIEST_SIGHT         11.0f
+#define PRIEST_MIN_DIST      5.0f
+#define PRIEST_MAX_DIST      8.0f
+#define PRIEST_FIRE_TIME     2.2f
 #define BOLT_SPEED          5.0f
-#define QUEEN_HP            20
-#define QUEEN_SPEED         1.8f
-#define QUEEN_WINDUP        0.6f
-#define QUEEN_RING_TIME     3.5f
+#define ABBOT_HP            20
+#define ABBOT_SPEED         1.8f
+#define ABBOT_WINDUP        0.6f
+#define ABBOT_RING_TIME     3.5f
 #define MAX_ENEMIES         64
 #define MAX_BOLTS           128
 
 /* -------------------------------------------------------------- enemies 2 */
 #define ENEMY_SIZE          0.6f        /* collision box of normal enemies */
-#define SKELETON_COOLDOWN   1.1f        /* pause after a melee attack */
-#define GHOST_REACH         1.2f
-#define GHOST_COOLDOWN      1.3f
-#define GHOST_FAINT_ALPHA   0.10f       /* how a ghost looks while out of the light */
-#define GHOST_LIGHT_NEEDED  0.22f       /* torch light level that reveals a ghost */
-#define GHOST_MOAN_RANGE    10.0f       /* ghosts moan now and then within this distance */
-#define WITCH_WINDUP        0.5f        /* telegraph before a bolt */
-#define QUEEN_SIGHT         14.0f
-#define QUEEN_REACH         2.1f
-#define QUEEN_SIZE          1.0f
-#define QUEEN_COOLDOWN      1.4f
-#define QUEEN_KNOCK_MUL     0.3f        /* the Queen barely flinches */
+#define ENEMY_MIN_LIGHT     0.55f       /* enemies never get darker than this (readable silhouettes) */
+#define MONK_COOLDOWN   1.1f        /* pause after a melee attack */
+#define WRAITH_REACH         1.2f
+#define WRAITH_COOLDOWN      1.3f
+#define WRAITH_FAINT_ALPHA   0.10f       /* how a ghost looks while out of the light */
+#define WRAITH_LIGHT_NEEDED  0.22f       /* torch light level that reveals a ghost */
+#define WRAITH_MOAN_RANGE    10.0f       /* ghosts moan now and then within this distance */
+#define PRIEST_WINDUP        0.5f        /* telegraph before a bolt */
+#define ABBOT_SIGHT         14.0f
+#define ABBOT_REACH         2.1f
+#define ABBOT_SIZE          1.0f
+#define ABBOT_COOLDOWN      1.4f
+#define ABBOT_KNOCK_MUL     0.3f        /* the Queen barely flinches */
 #define BOLT_LIFE           6.0f
 #define BOLT_HIT_RADIUS     0.45f
 #define BOLT_HEIGHT         1.2f
@@ -164,6 +165,17 @@
 #define CHEST_FACE_DEG      80.0f       /* how directly you must face a chest */
 #define CONTROLS_HINT_TIME  20.0f       /* seconds the controls hint shows in wing 1 */
 #define MAX_PARTICLES       256
+
+/* ------------------------------------------------------------ atmosphere */
+#define ASH_COUNT           300         /* grey ash flakes drifting around the camera */
+#define ASH_RANGE           9.0f        /* half size of the volume they wrap around in */
+#define ASH_FALL_SPEED      0.45f
+#define ASH_WIND_X          0.30f       /* sideways drift */
+#define ASH_WIND_Z          0.12f
+#define EMBER_COUNT         60          /* orange embers rising from torches */
+#define EMBER_RANGE         14.0f       /* only torches this close to the camera spark */
+#define BELL_TOLL_MIN       25.0f       /* a distant bell tolls every 25-40 s */
+#define BELL_TOLL_MAX       40.0f
 
 /* ----------------------------------------------------------------- audio */
 #define MASTER_VOLUME       0.9f

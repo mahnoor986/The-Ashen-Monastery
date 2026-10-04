@@ -10,6 +10,7 @@
 #include "raymath.h"
 
 static Mesh     cube;       /* unit cube, centered at the origin, white atlas tile */
+static Mesh     emberCube;  /* unit cube with the charred ember-crack texture (Ashen Monks) */
 static Material material;   /* atlas texture; tint is set per part */
 static const CharPose *pose; /* pose being drawn (for tint effects) */
 
@@ -19,6 +20,9 @@ void Character_Init(void)
     MB_Begin(&mb);
     MB_Box(&mb, (Vector3){ -0.5f, -0.5f, -0.5f }, (Vector3){ 0.5f, 0.5f, 0.5f }, TILE_WHITE, WHITE);
     cube = MB_End(&mb);
+    MB_Begin(&mb);
+    MB_Box(&mb, (Vector3){ -0.5f, -0.5f, -0.5f }, (Vector3){ 0.5f, 0.5f, 0.5f }, TILE_EMBER, WHITE);
+    emberCube = MB_End(&mb);
     material = LoadMaterialDefault();
     material.maps[MATERIAL_MAP_DIFFUSE].texture = Textures_Atlas();
 }
@@ -26,6 +30,7 @@ void Character_Init(void)
 void Character_Shutdown(void)
 {
     UnloadMesh(cube);
+    UnloadMesh(emberCube);
     material.maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ 0 };   /* the atlas is owned by textures.c */
     material.shader = (Shader){ 0 };                                  /* the shader is owned by render.c */
     UnloadMaterial(material);
@@ -44,8 +49,8 @@ static Color Mix(Color a, Color b, float t)
                     (unsigned char)(a.b + (b.b - a.b) * t), a.a };
 }
 
-/* Draw a box of `size` centered at `center` inside `frame`. */
-static void Part(Matrix frame, Vector3 center, Vector3 size, Color col)
+/* Draw a box of `size` centered at `center` inside `frame`, using mesh `m`. */
+static void PartMesh(Mesh m3, Matrix frame, Vector3 center, Vector3 size, Color col)
 {
     Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(size.x, size.y, size.z),
                                              MatrixTranslate(center.x, center.y, center.z)), frame);
@@ -53,7 +58,18 @@ static void Part(Matrix frame, Vector3 center, Vector3 size, Color col)
     if (pose->flash > 0.0f)  col = Mix(col, WHITE, pose->flash);
     if (pose->alpha > 0.0f)  col.a = (unsigned char)(255 * pose->alpha);
     material.maps[MATERIAL_MAP_DIFFUSE].color = col;
-    DrawMesh(cube, material, m);
+    DrawMesh(m3, material, m);
+}
+
+static void Part(Matrix frame, Vector3 center, Vector3 size, Color col)
+{
+    PartMesh(cube, frame, center, size, col);
+}
+
+/* Charred cloth with glowing ember cracks. */
+static void EmberPart(Matrix frame, Vector3 center, Vector3 size, Color col)
+{
+    PartMesh(emberCube, frame, center, size, col);
 }
 
 /* A part that glows (eyes, orbs): no lighting, only fog. */
@@ -142,163 +158,186 @@ void Character_DrawKnight(const CharPose *p)
     Part(head, (Vector3){ 0.0f, 0.44f, -0.02f }, (Vector3){ 0.07f, 0.10f, 0.40f }, crimson);
 }
 
-/* ------------------------------------------------------------ skeleton */
+/* ------------------------------------------------------------ enemy helpers */
 
-void Character_DrawSkeleton(const CharPose *p)
+/* Enemies are ~15% taller and ~15% thinner than a normal person. */
+static Matrix EnemyRoot(const CharPose *p, float scale)
 {
-    const Color bone = { 222, 214, 192, 255 }, boneDark = { 170, 160, 136, 255 };
-    const Color socket = { 14, 6, 6, 255 }, glow = { 255, 60, 40, 255 };
-    float swingLeg = sinf(p->walkPhase) * 0.55f * p->walkAmount;
+    return MatrixMultiply(MatrixMultiply(MatrixScale(scale * 0.85f, scale * 1.15f, scale * 0.85f), MatrixRotateY(p->yaw)),
+                          MatrixTranslate(p->pos.x, p->pos.y, p->pos.z));
+}
+
+/* Head joint with the random twitch applied. */
+static Matrix TwitchHead(Matrix body, Vector3 at, const CharPose *p, float extraYaw)
+{
+    return Joint(body, at, 0.0f, extraYaw + p->headYaw, p->headRoll);
+}
+
+/* Glowing eyes: unlit and never darkened by fog, so they are the first thing seen in the dark. */
+static void Eyes(Matrix head, float y, float z, float spread, Vector3 size, Color c)
+{
+    Render_SetEmissiveMode(2);
+    Part(head, (Vector3){ -spread, y, z }, size, c);
+    Part(head, (Vector3){  spread, y, z }, size, c);
+    Render_SetEmissiveMode(0);
+}
+
+/* ------------------------------------------------------------ Ashen Monk */
+
+void Character_DrawMonk(const CharPose *p)
+{
+    const Color robeDark = { 104, 96, 92, 255 }, hood = { 72, 64, 62, 255 }, shadow = { 4, 2, 2, 255 };
+    const Color skin = { 58, 52, 48, 255 }, rope = { 96, 42, 18, 255 }, eye = { 255, 30, 20, 255 };
+    float swingLeg = sinf(p->walkPhase) * 0.5f * p->walkAmount;
     float bob = fabsf(cosf(p->walkPhase)) * 0.04f * p->walkAmount + sinf(p->time * 2.0f) * 0.01f;
     Matrix root, body, limb, head;
     int side;
 
     pose = p;
-    root = RootFrame(p, 1.0f);
-    /* wind-up: lean back, ready to strike */
+    root = EnemyRoot(p, 1.0f);
     body = MatrixMultiply(MatrixMultiply(MatrixRotateX(-0.25f * p->windup), MatrixTranslate(0.0f, bob, 0.0f)), root);
 
+    /* feet peek out under the robe */
     for (side = -1; side <= 1; side += 2) {
-        limb = Joint(root, (Vector3){ 0.11f * side, 0.80f, 0.0f }, swingLeg * side, 0.0f, 0.0f);
-        Part(limb, (Vector3){ 0.0f, -0.40f, 0.0f }, (Vector3){ 0.11f, 0.78f, 0.12f }, bone);
-        Part(limb, (Vector3){ 0.0f, -0.77f, 0.05f }, (Vector3){ 0.14f, 0.06f, 0.22f }, boneDark);   /* foot */
+        limb = Joint(root, (Vector3){ 0.1f * side, 0.5f, 0.0f }, swingLeg * side, 0.0f, 0.0f);
+        Part(limb, (Vector3){ 0.0f, -0.42f, 0.04f }, (Vector3){ 0.13f, 0.16f, 0.24f }, skin);
     }
-    Part(body, (Vector3){ 0.0f, 0.82f, 0.0f }, (Vector3){ 0.34f, 0.10f, 0.16f }, boneDark);        /* pelvis */
-    Part(body, (Vector3){ 0.0f, 1.08f, -0.04f }, (Vector3){ 0.08f, 0.52f, 0.08f }, boneDark);      /* spine */
-    Part(body, (Vector3){ 0.0f, 1.02f, 0.0f }, (Vector3){ 0.34f, 0.05f, 0.22f }, bone);            /* ribs */
-    Part(body, (Vector3){ 0.0f, 1.13f, 0.0f }, (Vector3){ 0.40f, 0.05f, 0.24f }, bone);
-    Part(body, (Vector3){ 0.0f, 1.24f, 0.0f }, (Vector3){ 0.42f, 0.05f, 0.24f }, bone);
-    Part(body, (Vector3){ 0.0f, 1.37f, 0.0f }, (Vector3){ 0.52f, 0.07f, 0.14f }, bone);            /* collarbone */
+    /* charred robe with ember cracks, rope belt */
+    EmberPart(body, (Vector3){ 0.0f, 0.5f, 0.0f }, (Vector3){ 0.52f, 0.86f, 0.40f }, robeDark);
+    EmberPart(body, (Vector3){ 0.0f, 1.14f, 0.0f }, (Vector3){ 0.46f, 0.50f, 0.32f }, robeDark);
+    Part(body, (Vector3){ 0.0f, 0.88f, 0.0f }, (Vector3){ 0.50f, 0.06f, 0.36f }, rope);
 
-    /* arms stretched forward, swaying; raised higher during the wind-up */
+    /* long arms hanging low, swaying; raised during the wind-up */
     for (side = -1; side <= 1; side += 2) {
-        float reach = -1.05f - 0.9f * p->windup + sinf(p->time * 3.0f + side) * 0.08f;
-        limb = Joint(body, (Vector3){ 0.28f * side, 1.36f, 0.0f }, reach + swingLeg * 0.2f * side, 0.0f, 0.0f);
-        Part(limb, (Vector3){ 0.0f, -0.30f, 0.0f }, (Vector3){ 0.08f, 0.60f, 0.08f }, bone);
-        Part(limb, (Vector3){ 0.0f, -0.63f, 0.0f }, (Vector3){ 0.12f, 0.08f, 0.12f }, boneDark);   /* hand */
+        float rx = -0.2f - 1.2f * p->windup + sinf(p->time * 2.3f + side) * 0.06f - swingLeg * 0.3f * side;
+        limb = Joint(body, (Vector3){ 0.29f * side, 1.36f, 0.0f }, rx, 0.0f, 0.06f * side);
+        EmberPart(limb, (Vector3){ 0.0f, -0.36f, 0.0f }, (Vector3){ 0.16f, 0.72f, 0.18f }, robeDark);
+        Part(limb, (Vector3){ 0.0f, -0.78f, 0.0f }, (Vector3){ 0.10f, 0.14f, 0.10f }, skin);       /* claw-like hand */
     }
 
-    head = Joint(body, (Vector3){ 0.0f, 1.42f, 0.0f }, 0.0f, sinf(p->time * 1.3f) * 0.15f, 0.0f);
-    Part(head, (Vector3){ 0.0f, 0.20f, 0.0f }, (Vector3){ 0.34f, 0.32f, 0.34f }, bone);
-    Part(head, (Vector3){ 0.0f, 0.03f, 0.02f }, (Vector3){ 0.24f, 0.08f, 0.28f }, boneDark);       /* jaw */
-    if (p->alerted) {
-        GlowPart(head, (Vector3){ -0.08f, 0.22f, 0.165f }, (Vector3){ 0.09f, 0.08f, 0.02f }, glow);
-        GlowPart(head, (Vector3){  0.08f, 0.22f, 0.165f }, (Vector3){ 0.09f, 0.08f, 0.02f }, glow);
-    } else {
-        Part(head, (Vector3){ -0.08f, 0.22f, 0.165f }, (Vector3){ 0.09f, 0.08f, 0.02f }, socket);
-        Part(head, (Vector3){  0.08f, 0.22f, 0.165f }, (Vector3){ 0.09f, 0.08f, 0.02f }, socket);
-    }
-    Part(head, (Vector3){ 0.0f, 0.12f, 0.17f }, (Vector3){ 0.05f, 0.06f, 0.02f }, socket);          /* nose hole */
+    /* hood with a dark, faceless opening and burning red eyes */
+    head = TwitchHead(body, (Vector3){ 0.0f, 1.40f, 0.0f }, p, 0.0f);
+    Part(head, (Vector3){ 0.0f, 0.22f, -0.02f }, (Vector3){ 0.42f, 0.44f, 0.42f }, hood);
+    Part(head, (Vector3){ 0.0f, 0.46f, -0.08f }, (Vector3){ 0.22f, 0.12f, 0.24f }, hood);           /* hood peak */
+    Part(head, (Vector3){ 0.0f, 0.18f, 0.195f }, (Vector3){ 0.28f, 0.28f, 0.02f }, shadow);         /* face in shadow */
+    Eyes(head, 0.22f, 0.21f, 0.07f, (Vector3){ 0.07f, 0.04f, 0.02f }, eye);
 }
 
-/* ------------------------------------------------------------ ghost */
+/* ------------------------------------------------------------ Choir Wraith */
 
-void Character_DrawGhost(const CharPose *p)
+void Character_DrawWraith(const CharPose *p)
 {
-    const Color pale = { 196, 218, 255, 255 }, hollow = { 6, 8, 18, 255 };
+    const Color pale = { 200, 198, 204, 255 }, hood = { 160, 158, 166, 255 }, hollow = { 4, 4, 6, 255 };
+    const Color eye = { 255, 40, 30, 255 };
     float sway = sinf(p->time * 1.7f) * 0.06f;
     Matrix root, body, arm, head;
     int side;
 
     pose = p;
-    root = RootFrame(p, 1.0f);
+    root = EnemyRoot(p, 1.0f);
     body = MatrixMultiply(MatrixMultiply(MatrixRotateZ(sway), MatrixRotateX(-0.3f * p->windup)), root);
 
-    /* no legs: a body that tapers toward the bottom, trailing behind slightly */
-    Part(body, (Vector3){ 0.0f, 0.12f, -0.14f }, (Vector3){ 0.22f, 0.24f, 0.18f }, pale);
-    Part(body, (Vector3){ 0.0f, 0.38f, -0.08f }, (Vector3){ 0.34f, 0.30f, 0.26f }, pale);
-    Part(body, (Vector3){ 0.0f, 0.70f, -0.03f }, (Vector3){ 0.46f, 0.36f, 0.32f }, pale);
-    Part(body, (Vector3){ 0.0f, 1.06f, 0.0f }, (Vector3){ 0.56f, 0.40f, 0.36f }, pale);
+    /* no legs: a tattered body tapering to a wisp */
+    Part(body, (Vector3){ 0.0f, 0.10f, -0.16f }, (Vector3){ 0.16f, 0.22f, 0.14f }, pale);
+    Part(body, (Vector3){ 0.0f, 0.34f, -0.10f }, (Vector3){ 0.28f, 0.28f, 0.22f }, pale);
+    Part(body, (Vector3){ 0.0f, 0.66f, -0.04f }, (Vector3){ 0.40f, 0.36f, 0.30f }, pale);
+    Part(body, (Vector3){ 0.0f, 1.04f, 0.0f }, (Vector3){ 0.50f, 0.42f, 0.34f }, pale);
 
     for (side = -1; side <= 1; side += 2) {
         float wave = sinf(p->time * 2.4f + side * 1.2f) * 0.18f;
-        arm = Joint(body, (Vector3){ 0.32f * side, 1.20f, 0.0f }, -1.35f + wave - 0.4f * p->windup, 0.0f, 0.1f * side);
-        Part(arm, (Vector3){ 0.0f, -0.28f, 0.0f }, (Vector3){ 0.12f, 0.56f, 0.12f }, pale);
+        arm = Joint(body, (Vector3){ 0.28f * side, 1.20f, 0.0f }, -1.35f + wave - 0.4f * p->windup, 0.0f, 0.1f * side);
+        Part(arm, (Vector3){ 0.0f, -0.30f, 0.0f }, (Vector3){ 0.10f, 0.60f, 0.10f }, pale);
     }
 
-    head = Joint(body, (Vector3){ 0.0f, 1.28f, 0.0f }, 0.0f, 0.0f, 0.0f);
-    Part(head, (Vector3){ 0.0f, 0.22f, 0.0f }, (Vector3){ 0.40f, 0.42f, 0.40f }, pale);
-    Part(head, (Vector3){ -0.09f, 0.27f, 0.205f }, (Vector3){ 0.10f, 0.12f, 0.02f }, hollow);
-    Part(head, (Vector3){  0.09f, 0.27f, 0.205f }, (Vector3){ 0.10f, 0.12f, 0.02f }, hollow);
-    Part(head, (Vector3){ 0.0f, 0.09f, 0.205f }, (Vector3){ 0.12f, 0.14f, 0.02f }, hollow);          /* wailing mouth */
+    /* hooded head, singing: the mouth hangs wide open */
+    head = TwitchHead(body, (Vector3){ 0.0f, 1.26f, 0.0f }, p, 0.0f);
+    Part(head, (Vector3){ 0.0f, 0.22f, 0.0f }, (Vector3){ 0.36f, 0.42f, 0.36f }, pale);
+    Part(head, (Vector3){ 0.0f, 0.26f, -0.05f }, (Vector3){ 0.44f, 0.50f, 0.40f }, hood);           /* hood */
+    Part(head, (Vector3){ 0.0f, 0.06f, 0.185f }, (Vector3){ 0.12f, 0.20f, 0.02f }, hollow);          /* open mouth */
+    Part(head, (Vector3){ 0.0f, 0.27f, 0.183f }, (Vector3){ 0.22f, 0.10f, 0.02f }, hollow);          /* eye hollows */
+    Eyes(head, 0.27f, 0.195f, 0.06f, (Vector3){ 0.05f, 0.04f, 0.02f }, eye);
 }
 
-/* ------------------------------------------------------------ witch + queen */
+/* ------------------------------------------------------------ Ember Priest + Red Abbot */
 
-static void DrawWitchBody(const CharPose *p, float scale, Color robe, Color trim, bool queen)
+static void DrawRobed(const CharPose *p, float scale, Color robe, Color trim, bool abbot)
 {
-    const Color face = { 122, 170, 104, 255 }, hat = { 30, 18, 40, 255 };
-    const Color eye = { 10, 10, 10, 255 }, orb = { 190, 90, 255, 255 }, gold = { 222, 176, 64, 255 };
-    const Color eyeGlow = { 210, 255, 90, 255 };
+    const Color shadow = { 4, 2, 2, 255 }, iron = { 62, 58, 62, 255 }, ironDark = { 34, 32, 36, 255 };
+    const Color fire = { 255, 120, 30, 255 }, fireCore = { 255, 220, 120, 255 };
+    const Color eye = abbot ? (Color){ 255, 170, 40, 255 } : (Color){ 255, 40, 30, 255 };
     float bob = sinf(p->time * 2.0f) * 0.015f + fabsf(cosf(p->walkPhase)) * 0.03f * p->walkAmount;
     Matrix root, body, arm, head;
     int side, k;
 
     pose = p;
-    root = RootFrame(p, scale);
+    root = EnemyRoot(p, scale);
     body = MatrixMultiply(MatrixMultiply(MatrixRotateX(-0.22f * p->windup), MatrixTranslate(0.0f, bob, 0.0f)), root);
 
-    /* robe: a wide box down to the floor, narrower at the top */
-    Part(body, (Vector3){ 0.0f, 0.32f, 0.0f }, (Vector3){ 0.70f, 0.64f, 0.56f }, robe);
-    Part(body, (Vector3){ 0.0f, 0.88f, 0.0f }, (Vector3){ 0.54f, 0.52f, 0.40f }, robe);
-    Part(body, (Vector3){ 0.0f, 0.62f, 0.0f }, (Vector3){ 0.18f, 1.22f, 0.575f }, trim);                /* front panel */
-    Part(body, (Vector3){ 0.0f, 0.70f, 0.0f }, (Vector3){ 0.58f, 0.06f, 0.44f }, trim);                 /* sash */
+    /* robe to the floor, narrower at the top, with a front panel */
+    Part(body, (Vector3){ 0.0f, 0.34f, 0.0f }, (Vector3){ 0.66f, 0.68f, 0.52f }, robe);
+    Part(body, (Vector3){ 0.0f, 0.92f, 0.0f }, (Vector3){ 0.50f, 0.52f, 0.38f }, robe);
+    Part(body, (Vector3){ 0.0f, 0.64f, 0.0f }, (Vector3){ 0.18f, 1.26f, 0.535f }, trim);
+    Part(body, (Vector3){ 0.0f, 1.16f, 0.0f }, (Vector3){ 0.60f, 0.10f, 0.42f }, trim);           /* stole */
 
-    /* left arm hangs, right arm holds the glowing orb forward */
     for (side = -1; side <= 1; side += 2) {
-        float rx = side > 0 ? 0.15f + sinf(p->walkPhase) * 0.3f * p->walkAmount : -1.0f - 0.6f * p->windup;
-        arm = Joint(body, (Vector3){ 0.33f * side, 1.10f, 0.0f }, rx, 0.0f, side > 0 ? 0.12f : 0.0f);
-        Part(arm, (Vector3){ 0.0f, -0.26f, 0.0f }, (Vector3){ 0.16f, 0.52f, 0.18f }, robe);
-        Part(arm, (Vector3){ 0.0f, -0.54f, 0.0f }, (Vector3){ 0.10f, 0.08f, 0.10f }, face);
-        if (side < 0 && !queen) GlowPart(arm, (Vector3){ 0.0f, -0.68f, 0.0f }, (Vector3){ 0.18f, 0.18f, 0.18f }, orb);
-    }
-
-    head = Joint(body, (Vector3){ 0.0f, 1.14f, 0.0f }, 0.0f, 0.0f, 0.0f);
-    Part(head, (Vector3){ 0.0f, 0.18f, 0.0f }, (Vector3){ 0.34f, 0.34f, 0.34f }, face);
-    Part(head, (Vector3){ 0.0f, 0.14f, 0.20f }, (Vector3){ 0.06f, 0.12f, 0.08f }, face);                /* long nose */
-    for (side = -1; side <= 1; side += 2) {
-        if (p->alerted) GlowPart(head, (Vector3){ 0.08f * side, 0.22f, 0.172f }, (Vector3){ 0.07f, 0.05f, 0.02f }, eyeGlow);
-        else            Part(head, (Vector3){ 0.08f * side, 0.22f, 0.172f }, (Vector3){ 0.07f, 0.05f, 0.02f }, eye);
-    }
-    Part(head, (Vector3){ 0.0f, 0.18f, -0.12f }, (Vector3){ 0.38f, 0.36f, 0.14f }, hat);              /* hair */
-
-    if (!queen) {
-        /* tall pointed hat: brim + stacked shrinking boxes, tip bent back */
-        Part(head, (Vector3){ 0.0f, 0.37f, 0.0f }, (Vector3){ 0.66f, 0.05f, 0.66f }, hat);
-        Part(head, (Vector3){ 0.0f, 0.49f, 0.0f }, (Vector3){ 0.40f, 0.20f, 0.40f }, hat);
-        Part(head, (Vector3){ 0.0f, 0.67f, -0.03f }, (Vector3){ 0.29f, 0.18f, 0.29f }, hat);
-        Part(head, (Vector3){ 0.0f, 0.83f, -0.07f }, (Vector3){ 0.19f, 0.16f, 0.19f }, hat);
-        Part(head, (Vector3){ 0.0f, 0.95f, -0.13f }, (Vector3){ 0.10f, 0.12f, 0.10f }, hat);
-        Part(head, (Vector3){ 0.0f, 0.415f, 0.0f }, (Vector3){ 0.41f, 0.05f, 0.41f }, (Color){ 110, 40, 130, 255 }); /* band */
-    } else {
-        /* crown of small gold boxes with a red jewel */
-        Part(head, (Vector3){ 0.0f, 0.39f, 0.0f }, (Vector3){ 0.40f, 0.08f, 0.40f }, gold);
-        for (k = 0; k < 8; k++) {
-            float a = k * PI / 4.0f;
-            Part(head, (Vector3){ sinf(a) * 0.17f, 0.48f + (k % 2) * 0.04f, cosf(a) * 0.17f },
-                 (Vector3){ 0.06f, 0.10f + (k % 2) * 0.08f, 0.06f }, gold);
+        bool censerHand = side < 0 && !abbot;
+        float rx = censerHand ? -0.7f - 0.6f * p->windup : (side > 0 ? 0.1f + sinf(p->walkPhase) * 0.3f * p->walkAmount
+                                                                     : -1.0f - 0.6f * p->windup);
+        arm = Joint(body, (Vector3){ 0.31f * side, 1.12f, 0.0f }, rx, 0.0f, side > 0 ? 0.1f : 0.0f);
+        Part(arm, (Vector3){ 0.0f, -0.27f, 0.0f }, (Vector3){ 0.16f, 0.54f, 0.18f }, robe);
+        Part(arm, (Vector3){ 0.0f, -0.56f, 0.0f }, (Vector3){ 0.09f, 0.08f, 0.09f }, (Color){ 60, 46, 40, 255 });
+        if (censerHand) {
+            /* a burning censer swinging on its chain */
+            Matrix chain = Joint(arm, (Vector3){ 0.0f, -0.58f, 0.0f }, 0.7f + 0.6f * p->windup + sinf(p->time * 3.0f) * 0.3f, 0.0f, 0.0f);
+            Part(chain, (Vector3){ 0.0f, -0.18f, 0.0f }, (Vector3){ 0.02f, 0.36f, 0.02f }, ironDark);
+            Part(chain, (Vector3){ 0.0f, -0.42f, 0.0f }, (Vector3){ 0.16f, 0.14f, 0.16f }, iron);
+            GlowPart(chain, (Vector3){ 0.0f, -0.32f, 0.0f }, (Vector3){ 0.10f, 0.08f, 0.10f }, fire);
         }
-        GlowPart(head, (Vector3){ 0.0f, 0.40f, 0.205f }, (Vector3){ 0.07f, 0.06f, 0.02f }, (Color){ 255, 40, 50, 255 });
-        /* two orbs circling her */
+    }
+
+    head = TwitchHead(body, (Vector3){ 0.0f, 1.18f, 0.0f }, p, 0.0f);
+    Part(head, (Vector3){ 0.0f, 0.18f, 0.02f }, (Vector3){ 0.32f, 0.32f, 0.30f }, shadow);           /* face lost in shadow */
+    if (!abbot) {
+        /* tall pointed hood */
+        Part(head, (Vector3){ 0.0f, 0.20f, -0.03f }, (Vector3){ 0.40f, 0.42f, 0.38f }, trim);
+        Part(head, (Vector3){ 0.0f, 0.46f, -0.06f }, (Vector3){ 0.30f, 0.20f, 0.30f }, trim);
+        Part(head, (Vector3){ 0.0f, 0.62f, -0.10f }, (Vector3){ 0.18f, 0.18f, 0.18f }, trim);
+        Part(head, (Vector3){ 0.0f, 0.75f, -0.14f }, (Vector3){ 0.08f, 0.12f, 0.08f }, trim);
+        Part(head, (Vector3){ 0.0f, 0.17f, 0.172f }, (Vector3){ 0.24f, 0.26f, 0.02f }, shadow);
+    } else {
+        /* tall iron mitre shaped like a bell: knob, crown, flaring lip */
+        Part(head, (Vector3){ 0.0f, 0.36f, 0.0f }, (Vector3){ 0.46f, 0.06f, 0.46f }, ironDark);     /* lip */
+        Part(head, (Vector3){ 0.0f, 0.46f, 0.0f }, (Vector3){ 0.38f, 0.14f, 0.38f }, iron);
+        Part(head, (Vector3){ 0.0f, 0.60f, 0.0f }, (Vector3){ 0.30f, 0.16f, 0.30f }, iron);
+        Part(head, (Vector3){ 0.0f, 0.72f, 0.0f }, (Vector3){ 0.22f, 0.10f, 0.22f }, iron);
+        Part(head, (Vector3){ 0.0f, 0.80f, 0.0f }, (Vector3){ 0.08f, 0.08f, 0.08f }, ironDark);     /* knob */
+        Part(head, (Vector3){ 0.0f, 0.48f, 0.195f }, (Vector3){ 0.06f, 0.16f, 0.02f }, (Color){ 140, 16, 24, 255 });
+        Part(head, (Vector3){ 0.0f, 0.18f, -0.12f }, (Vector3){ 0.36f, 0.34f, 0.14f }, trim);       /* cowl */
+    }
+    Eyes(head, 0.22f, abbot ? 0.18f : 0.185f, 0.07f, (Vector3){ 0.07f, 0.04f, 0.02f }, eye);
+
+    if (abbot) {
+        /* two fireballs circling him */
         for (k = 0; k < 2; k++) {
             float a = p->time * 2.2f + k * PI;
-            GlowPart(root, (Vector3){ sinf(a) * 0.75f, 1.05f + sinf(p->time * 3.0f + k) * 0.12f, cosf(a) * 0.75f },
-                     (Vector3){ 0.16f, 0.16f, 0.16f }, orb);
+            Vector3 c = { sinf(a) * 0.75f, 1.05f + sinf(p->time * 3.0f + k) * 0.12f, cosf(a) * 0.75f };
+            GlowPart(root, c, (Vector3){ 0.16f, 0.16f, 0.16f }, fire);
+            GlowPart(root, c, (Vector3){ 0.09f, 0.20f, 0.09f }, fireCore);
         }
     }
 }
 
-void Character_DrawWitch(const CharPose *p)
+void Character_DrawPriest(const CharPose *p)
 {
-    DrawWitchBody(p, 1.0f, (Color){ 62, 26, 76, 255 }, (Color){ 40, 16, 50, 255 }, false);
+    DrawRobed(p, 1.0f, (Color){ 120, 14, 24, 255 }, (Color){ 70, 8, 14, 255 }, false);
 }
 
-void Character_DrawQueen(const CharPose *p)
+void Character_DrawAbbot(const CharPose *p)
 {
-    DrawWitchBody(p, 1.8f, (Color){ 22, 16, 24, 255 }, (Color){ 140, 16, 30, 255 }, true);
+    DrawRobed(p, 1.8f, (Color){ 150, 14, 24, 255 }, (Color){ 22, 16, 18, 255 }, true);
 }
 
-/* ------------------------------------------------------------ hex bolt */
+/* ------------------------------------------------------------ fireball */
 
 void Character_DrawBolt(Vector3 pos, float spin)
 {
@@ -306,6 +345,6 @@ void Character_DrawBolt(Vector3 pos, float spin)
     Matrix m = MatrixMultiply(MatrixMultiply(MatrixRotateX(spin), MatrixRotateY(spin * 1.3f)),
                               MatrixTranslate(pos.x, pos.y, pos.z));
     pose = &none;
-    GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.26f, 0.26f, 0.26f }, (Color){ 170, 70, 255, 255 });
-    GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.14f, 0.34f, 0.14f }, (Color){ 240, 200, 255, 255 });
+    GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.28f, 0.28f, 0.28f }, (Color){ 255, 80, 20, 255 });
+    GlowPart(m, (Vector3){ 0 }, (Vector3){ 0.16f, 0.36f, 0.16f }, (Color){ 255, 220, 120, 255 });
 }

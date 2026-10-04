@@ -260,6 +260,25 @@ static void PaintPlain(Image *img, int tile, Color c, float noise)
             Put(img, tile, x, y, noise > 0.0f ? Noisy(c, x, y, 33 + tile, noise) : c);
 }
 
+static void PaintEmber(Image *img)
+{
+    const Color char1 = { 46, 42, 40, 255 }, hot = { 255, 116, 30, 255 }, warm = { 190, 56, 12, 255 };
+    int x, y, k;
+    for (y = 0; y < 16; y++)
+        for (x = 0; x < 16; x++)
+            Put(img, TILE_EMBER, x, y, Noisy(char1, x, y, 40, 0.25f));
+    /* three glowing cracks wandering down the cloth */
+    for (k = 0; k < 3; k++) {
+        int cx = 2 + k * 5;
+        for (y = 0; y < 16; y++) {
+            cx += (int)(Rnd(k, y, 41) * 3.0f) - 1;
+            if (cx < 0) cx = 0;
+            if (cx > 15) cx = 15;
+            if (Rnd(k, y, 42) < 0.8f) Put(img, TILE_EMBER, cx, y, Rnd(cx, y, 43) > 0.5f ? hot : warm);
+        }
+    }
+}
+
 /* ------------------------------------------------------------ API */
 
 /* Real textures (optional): file in assets/textures/ -> atlas slot. */
@@ -307,6 +326,7 @@ void Textures_Init(void)
     PaintPlain(&img, TILE_WHITE, WHITE, 0.0f);
     PaintPlain(&img, TILE_FLAME, (Color){ 255, 196, 90, 255 }, 0.12f);
     PaintPlain(&img, TILE_IRON, (Color){ 44, 44, 50, 255 }, 0.2f);
+    PaintEmber(&img);
 
     /* scale the 16 px tiles up to 64 px slots (nearest keeps them crisp), then add photo textures */
     ImageResizeNN(&img, ATLAS_TILE * ATLAS_TILES, ATLAS_TILE * ATLAS_TILES);

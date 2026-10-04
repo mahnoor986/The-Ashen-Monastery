@@ -1,10 +1,10 @@
 
 wing   name                                cells chunks vertices chests enemies torches
 1      The Gatehouse                        1230      6    14184      3       5      24   16.7 ms/frame
-2      The Grand Ballroom                   1564      7    17532      4       9      43   16.6 ms/frame
+2      The Grand Ballroom                   1564      7    17532      4       9      43   16.9 ms/frame
 3      The Moonlit Library                  1824      7    17700      4      10      37   16.9 ms/frame
-4      The Bone Chapel                      2000      7    24132      5      14      43   16.8 ms/frame
-5      The Witch Queen's Throne Room        1920      7    22620      5       8      25   17.3 ms/frame
+4      The Bone Chapel                      2000      7    24132      5      14      43   16.9 ms/frame
+5      The Witch Queen's Throne Room        1920      7    22620      5       8      25   17.0 ms/frame
 
 flow test (wing 1, scripted input):
   [ ok ] hold E opens chest 1 (Silver Chalice)

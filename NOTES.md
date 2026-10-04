@@ -144,3 +144,19 @@ Decisions made while building, and things worth knowing.
 - Photos are shrunk with bicubic `ImageResize` (nearest from 1024 -> 64 px turns into noise);
   the GPU still samples with point filtering, so the result keeps the PS1 look. Darkened by 35.
 - Carpet is now deep crimson; bookshelf, carpet, bone, chest, plank floor stay generated.
+
+## Task 4 - Scarier enemies + burning atmosphere
+- Enemies renamed in code and on screen: Skeleton -> Ashen Monk (`EN_MONK`), Ghost -> Choir
+  Wraith (`EN_WRAITH`), Witch -> Ember Priest (`EN_PRIEST`), Witch Queen -> The Red Abbot
+  (`EN_ABBOT`); config prefixes too (`MONK_`, `WRAITH_`, `PRIEST_`, `ABBOT_`). AI and stats unchanged.
+- New box models: charred hooded monks with ember-crack cloth (new generated atlas tile
+  `TILE_EMBER`), hooded singing wraiths, crimson priests with tall hoods and a burning censer,
+  the Abbot with a bell-shaped iron mitre and two orbiting fireballs. Priest/Abbot "bolts" are
+  now orange fireballs. All enemies are scaled 15% taller and 15% thinner.
+- Eyes are emissive mode 2 (unlit AND no fog) so they are the first thing seen in the dark.
+- Enemies get a minimum light (`ENEMY_MIN_LIGHT` 0.55) so their silhouettes stay readable for a
+  beginner; the first darker version made monks invisible except for their eyes.
+- Twitching heads (random 0.6-2.5 s, 0.08-0.15 s snaps); Ashen Monks lurch (stutter-step speed).
+- `atmos.c`: 300 ash flakes wrap around the camera; 60 additive embers rise from nearby torches.
+- Bell tolls every 25-40 s: synthesised bell (`MakeBell`: 110/220/277/330/440 Hz partials, 4 s),
+  red screen pulse, torches flare. A shorter cracked bell (`SND_BELL_BREAK`) is ready for Task 5.
