@@ -30,3 +30,21 @@ Decisions made while building, and things worth knowing.
   source is copied into `legacy_2d/` (not compiled).
 - The old `build.bat` referenced files that no longer exist; it lives in `legacy_2d/`.
 - `build/`, `*.exe`, `save.txt` and `shots/*.png` are git-ignored.
+
+## Phase 1 decisions
+- Extra modules beyond the CLAUDE.md layout: `screen.c` (virtual screen, see above) and
+  `meshgen.c` (CPU mesh builder shared by world chunks, the door and the character cube).
+- The wing table values live in `config.h` as the `WING_TABLE` macro; `game.c` creates the
+  array from it (a `static` array in a header would trigger unused-variable warnings).
+- Fonts are found by file name anywhere under `assets/fonts/` (`LoadDirectoryFilesEx`, recursive).
+- Characters use one cube mesh built with the atlas's plain white tile, tinted per part, so
+  everything (world + characters) shares a single texture.
+- The exit door is drawn as a separate slab (4 stacked iron blocks) per `E` cell, not part of
+  the chunk mesh; it will slide down into the floor when the wing is complete (`doorSlide`).
+- Torch flames are plain `DrawCube`s for now (phase 2 makes them part of the lighting).
+- `--autotest` skips wings whose file doesn't exist yet (wings 2-5 arrive in phase 5) and
+  also saves `shots/knight.png` (knight walking + mid-swing close-up).
+- Arrow keys also turn the camera (useful on a laptop touchpad). Esc frees the mouse,
+  clicking the window captures it again (Esc becomes Pause in phase 3).
+- Wing maps are hand-designed; I laid them out with a throwaway Python script (rectangles),
+  but the `.txt` files are the source of truth and can be edited by hand.

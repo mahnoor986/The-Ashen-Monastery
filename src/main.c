@@ -1,50 +1,48 @@
-/* main.c - program entry point.
- * Phase 0 placeholder: opens the window, loads the fonts and shows a title card.
- * `--autotest` saves shots/menu.png and exits, proving the build + screenshot pipeline works. */
+/* main.c - program entry point: window, main loop and command-line flags.
+ *   --wing N     start directly in wing N (1-5)
+ *   --autotest   load every wing, render it, save screenshots to shots/, print a summary, exit */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
 #include "config.h"
 #include "screen.h"
+#include "game.h"
 
 int main(int argc, char **argv)
 {
+    static Game game;          /* static: keeps the big struct off the stack */
     bool autotest = false;
-    int frame = 0;
-    Font title, body;
-    int i;
+    int startWing = 0, i, code = 0;
 
-    for (i = 1; i < argc; i++)
+    for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--autotest") == 0) autotest = true;
+        else if (strcmp(argv[i], "--wing") == 0 && i + 1 < argc) startWing = atoi(argv[++i]) - 1;
+    }
+    if (startWing < 0 || startWing >= WING_COUNT) startWing = 0;
 
+    if (autotest) SetTraceLogLevel(LOG_WARNING);    /* keep the summary readable */
     Screen_Init(WINDOW_TITLE);
     ChangeDirectory(GetApplicationDirectory());     /* relative asset paths work when double-clicked */
-    SetExitKey(KEY_NULL);
+    SetExitKey(KEY_NULL);                           /* Esc is used by the game, not to quit */
     SetTargetFPS(TARGET_FPS);
 
-    title = FileExists(FONT_TITLE_FILE) ? LoadFontEx(FONT_TITLE_FILE, 96, NULL, 0) : GetFontDefault();
-    body  = FileExists(FONT_BODY_FILE)  ? LoadFontEx(FONT_BODY_FILE, 32, NULL, 0)  : GetFontDefault();
+    Game_Init(&game, startWing, autotest);
 
-    while (!WindowShouldClose()) {
-        const char *t = "BLACKTHORN MANOR";
-        const char *s = "Collect the treasures. Survive the night.";
-        Vector2 ts = MeasureTextEx(title, t, 96, 2);
-        Vector2 ss = MeasureTextEx(body, s, 32, 1);
-
-        Screen_Begin();
-        ClearBackground(COL_NEARBLACK);
-        DrawTextEx(title, t, (Vector2){ (SCREEN_W - ts.x) / 2, 240 }, 96, 2, COL_BLOOD);
-        DrawTextEx(body, s, (Vector2){ (SCREEN_W - ss.x) / 2, 350 }, 32, 1, COL_BONE);
-        Screen_End();
-
-        if (autotest && ++frame == 3) {
-            MakeDirectory("shots");
-            Screen_Save("shots/menu.png");
-            break;
+    if (autotest) {
+        code = Game_Autotest(&game);
+    } else {
+        while (!WindowShouldClose() && !game.quit) {
+            float dt = GetFrameTime();
+            if (dt > MAX_DT) dt = MAX_DT;
+            Game_Update(&game, dt);
+            Screen_Begin();
+            Game_Draw(&game);
+            Screen_End();
         }
     }
 
-    if (title.texture.id != GetFontDefault().texture.id) UnloadFont(title);
-    if (body.texture.id != GetFontDefault().texture.id) UnloadFont(body);
+    Game_Shutdown(&game);
     Screen_Shutdown();
-    return 0;
+    return code;
 }
