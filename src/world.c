@@ -52,6 +52,45 @@ bool World_IsWallCell(const World *w, int x, int z)
     return IsWallChar(c) || (c == 'E' && !w->exitOpen);
 }
 
+bool World_PropBlocked(const World *w, float x, float z, float margin)
+{
+    int i;
+    for (i = 0; i < w->colliderCount; i++) {
+        const Collider *c = &w->colliders[i];
+        if (x > c->x0 - margin && x < c->x1 + margin && z > c->z0 - margin && z < c->z1 + margin) return true;
+    }
+    return false;
+}
+
+static bool BoxHitsProp(const World *w, float cx, float cz, float h)
+{
+    int i;
+    for (i = 0; i < w->colliderCount; i++) {
+        const Collider *c = &w->colliders[i];
+        if (cx + h > c->x0 && cx - h < c->x1 && cz + h > c->z0 && cz - h < c->z1) return true;
+    }
+    return false;
+}
+
+void World_AddFlame(World *w, Vector3 pos, float size)
+{
+    if (w->flameCount >= MAX_FLAMES) return;
+    w->flames[w->flameCount].pos = pos;
+    w->flames[w->flameCount].size = size;
+    w->flameCount++;
+}
+
+void World_AddLight(World *w, Vector3 pos, Vector3 color, float radius)
+{
+    Torch *t;
+    if (w->torchCount >= MAX_TORCHES) return;
+    t = &w->torches[w->torchCount++];
+    t->pos = pos;
+    t->normal = (Vector3){ 0 };
+    t->color = color;
+    t->radius = radius;
+}
+
 bool World_BoxBlocked(const World *w, float cx, float cz, float size)
 {
     float h = size * 0.5f;
@@ -61,7 +100,7 @@ bool World_BoxBlocked(const World *w, float cx, float cz, float size)
     for (z = z0; z <= z1; z++)
         for (x = x0; x <= x1; x++)
             if (World_IsSolid(w, x, z)) return true;
-    return false;
+    return BoxHitsProp(w, cx, cz, h);
 }
 
 void World_Move(const World *w, Vector3 *pos, float size, Vector3 delta)
@@ -410,14 +449,15 @@ Vector3 World_LightAt(const World *w, Vector3 p)
     Vector3 sum = { 0 };
     int i;
     for (i = 0; i < w->torchCount; i++) {
-        float d = Vector3Distance(p, w->torches[i].pos), f;
-        if (d >= TORCH_RADIUS) continue;
-        if (!TorchReaches(w, w->torches[i].pos, p)) continue;
-        f = 1.0f - d / TORCH_RADIUS;
+        const Torch *t = &w->torches[i];
+        float d = Vector3Distance(p, t->pos), f;
+        if (d >= t->radius) continue;
+        if (!TorchReaches(w, t->pos, p)) continue;
+        f = 1.0f - d / t->radius;
         f = f * f * f * TORCH_INTENSITY;      /* cubic falloff: bright pools, dark gaps */
-        sum.x += TORCH_COLOR_R * f;
-        sum.y += TORCH_COLOR_G * f;
-        sum.z += TORCH_COLOR_B * f;
+        sum.x += t->color.x * f;
+        sum.y += t->color.y * f;
+        sum.z += t->color.z * f;
     }
     sum.x = fminf(sum.x, 1.0f);
     sum.y = fminf(sum.y, 1.0f);

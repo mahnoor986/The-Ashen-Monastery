@@ -544,6 +544,9 @@ static Image LoadPhotoMaterial(int i)
     return img;
 }
 
+static Image GenPotion(void);
+static Image GenMirror(void);
+
 static void InitMaterials(void)
 {
     Image gen[MAT_COUNT] = { 0 };
@@ -559,6 +562,8 @@ static void InitMaterials(void)
     gen[MAT_FLAME] = GenFlame();
     gen[MAT_PAINTING] = GenPainting();
     gen[MAT_CLOTH] = GenCloth();
+    gen[MAT_POTION] = GenPotion();
+    gen[MAT_MIRROR] = GenMirror();
     for (i = 0; i < MAT_COUNT; i++) {
         if (gen[i].width != MAT_TEX_SIZE) ImageResizeNN(&gen[i], MAT_TEX_SIZE, MAT_TEX_SIZE);   /* chunky pixels */
         materials[i] = LoadTextureFromImage(gen[i]);
@@ -566,6 +571,32 @@ static void InitMaterials(void)
         SetTextureWrap(materials[i], TEXTURE_WRAP_REPEAT);
         UnloadImage(gen[i]);
     }
+}
+
+static Image GenPotion(void)
+{
+    Image img = GenImageColor(64, 64, BLACK);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            float swirl = 0.5f + 0.5f * sinf(x * 0.35f + 2.0f * sinf(y * 0.21f));
+            Px(&img, x, y, (Color){ (unsigned char)(40 + 50 * swirl), (unsigned char)(150 + 90 * swirl), (unsigned char)(60 + 40 * swirl), 255 });
+        }
+    return img;
+}
+
+static Image GenMirror(void)
+{
+    Image img = GenImageColor(64, 64, BLACK);
+    int x, y;
+    for (y = 0; y < 64; y++)
+        for (x = 0; x < 64; x++) {
+            float sheen = fmaxf(0.0f, 1.0f - fabsf((x - y * 0.6f) - 10.0f) / 6.0f);       /* diagonal glint */
+            Color c = Noisy((Color){ 26, 32, 44, 255 }, x / 2, y / 2, 69, 0.25f);
+            c = Shade(c, 1.0f + 1.4f * sheen);
+            Px(&img, x, y, c);
+        }
+    return img;
 }
 
 Texture2D Textures_Material(int mat)

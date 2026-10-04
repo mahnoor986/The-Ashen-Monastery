@@ -145,6 +145,7 @@ static bool CameraBlocked(const World *w, Vector3 q)
 {
     const float m = CAM_WALL_MARGIN;
     if (q.y < CAM_MIN_Y || q.y > World_CeilingAt(w, q.x, q.z) - CAM_CEILING_MARGIN) return true;
+    if (q.y < PROP_CAMERA_HEIGHT && World_PropBlocked(w, q.x, q.z, m)) return true;
     return World_IsWallCell(w, (int)floorf(q.x - m), (int)floorf(q.z - m)) ||
            World_IsWallCell(w, (int)floorf(q.x + m), (int)floorf(q.z - m)) ||
            World_IsWallCell(w, (int)floorf(q.x - m), (int)floorf(q.z + m)) ||

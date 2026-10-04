@@ -51,6 +51,8 @@ typedef enum {
     MAT_FLAME,             /* candle/torch flame, emissive (generated) */
     MAT_PAINTING,          /* dim old painting (generated) */
     MAT_CLOTH,             /* crimson curtain/rug cloth (generated) */
+    MAT_POTION,            /* sickly green glow: cauldrons (generated, emissive) */
+    MAT_MIRROR,            /* dark mirror glass with a faint sheen (generated) */
     MAT_COUNT
 } MaterialId;
 

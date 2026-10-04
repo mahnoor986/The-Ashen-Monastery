@@ -54,7 +54,10 @@
 #define CHUNK_SIZE      16              /* cells per mesh chunk side */
 #define MAX_CHUNKS      ((WORLD_MAX_W / CHUNK_SIZE + 1) * (WORLD_MAX_H / CHUNK_SIZE + 1))
 #define MAX_WORLD_PARTS (MAX_CHUNKS * 20)   /* meshes: one per (chunk, material) */
-#define MAX_TORCHES     128
+#define MAX_TORCHES     256             /* light sources */
+#define MAX_FLAMES      512
+#define MAX_PROPS       512
+#define MAX_COLLIDERS   384
 #define MAX_CHESTS      8
 #define MAX_EXIT_CELLS  4
 #define MAX_SPAWNS      64
@@ -87,6 +90,7 @@
 #define CAM_PITCH_MAX       15.0f       /* degrees, most upward look */
 #define CAM_PITCH_DEFAULT   (-14.0f)    /* degrees, starting pitch */
 #define CAM_MIN_Y           0.2f        /* camera never goes below this */
+#define PROP_CAMERA_HEIGHT  2.4f        /* solid props block the camera below this height */
 #define CAM_CEILING_MARGIN  0.45f       /* camera stays this far below the local ceiling (and its beams) */
 #define CAM_WALL_MARGIN     0.18f       /* keep this far from walls so the near plane doesn't clip */
 #define CAM_RETURN_SPEED    4.0f        /* how fast the camera eases back out after a wall pushed it in */

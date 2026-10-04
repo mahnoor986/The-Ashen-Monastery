@@ -339,7 +339,7 @@ void Render_DrawWorld(const World *w, float time)
     Render_UseWorldLight();
     for (i = 0; i < w->partCount; i++) {
         int m = w->parts[i].mat;
-        bool glow = m == MAT_GLASS || m == MAT_FLAME;
+        bool glow = m == MAT_GLASS || m == MAT_FLAME || m == MAT_POTION;
         if (m == MAT_COBWEB) continue;                       /* drawn in the transparent pass */
         if (glow) Render_SetEmissive(true);
         DrawMesh(w->parts[i].mesh, mats[m], MatrixIdentity());
@@ -350,12 +350,13 @@ void Render_DrawWorld(const World *w, float time)
     for (i = 0; i < w->doorwayCount; i++) DrawDoorway(w, &w->doorways[i]);
     Render_UseWorldLight();
 
-    /* torch flames: small glowing cubes that flicker in size (raylib's default shader = unlit) */
-    for (i = 0; i < w->torchCount; i++) {
-        Vector3 p = w->torches[i].pos;
-        float f = (1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i)) * (1.0f + 0.9f * flare);
-        DrawCube((Vector3){ p.x, p.y + 0.02f, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
-        DrawCube((Vector3){ p.x, p.y + 0.0f, p.z }, 0.08f, 0.12f * f, 0.08f, (Color){ 255, 236, 150, 255 });
+    /* flames: small glowing cubes that flicker in size (raylib's default shader = unlit) */
+    for (i = 0; i < w->flameCount; i++) {
+        Vector3 p = w->flames[i].pos;
+        float k = w->flames[i].size;
+        float f = (1.0f + 0.15f * sinf(time * 13.0f + i * 1.7f) + 0.08f * sinf(time * 23.0f + i)) * (1.0f + 0.9f * flare) * k;
+        DrawCube((Vector3){ p.x, p.y + 0.02f * k, p.z }, 0.15f * f, 0.2f * f, 0.15f * f, (Color){ 255, 120, 30, 255 });
+        DrawCube((Vector3){ p.x, p.y, p.z }, 0.08f * k, 0.12f * f, 0.08f * k, (Color){ 255, 236, 150, 255 });
     }
 }
 

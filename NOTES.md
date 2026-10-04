@@ -284,3 +284,26 @@ Decisions made while building, and things worth knowing.
   curved 6-segment lid with iron bands, hinged at the back.
 - Camera: stays 0.45 below the local ceiling (`World_CeilingAt`); the lightning ray stops there too.
 - Dev flag `--bright` (flat bright ambient) to inspect geometry in screenshots; `shots/door.png`.
+
+## Item 7 - Props and room themes
+- `props.c` (new) + `geo.h` (the builder API shared with architecture.c). `Props_Place` runs
+  before the meshes are baked: it chooses props deterministically per wing (`World.theme`),
+  registers flames (`World.flames`), light sources (`World.torches`, now with colour + radius)
+  and collision boxes (`World.colliders`, used by `World_BoxBlocked`, the camera and enemies).
+- Rules: wall props stand in "slots" (room cell + plain wall side); centre props need free cells.
+  Kept free: the start, chests (+1 ring), spawns, NPCs, exits (+2), carpets, bone piles and a
+  2-cell path in front of every opening. Each solid prop re-runs the flood fill from the start;
+  if any cell, chest or exit would become unreachable, the prop is removed again.
+- Everywhere: candelabras (3 candles, light), banners with the key + crescent emblem, framed
+  paintings, rubble, cobwebs in upper room corners. Corridors: hanging iron lanterns about every
+  4 cells (light), wall lanterns, wooden benches.
+- Wing themes: 1 suits of armor on plinths, stone benches, a portcullis behind the start;
+  2 dining tables with benches and candles + ring chandeliers in the great hall, dormitories with
+  four-poster beds (crimson curtains), trunks, a stone fireplace with fire (light) and a rug;
+  3 bookcases, reading tables with candles, the tower study (desk, brass globe, spiral stair in a
+  corner, gallery ledge with railing high on the walls); 4 alchemy rooms (jar shelves with glowing
+  glass, cauldrons with a green glow light, workbenches, stools) alternating with crypts (stone
+  coffins, skull niches, floor candles) and one tall standing mirror (gold frame, pointed top,
+  dark glass with a sheen); 5 the great bell hanging high in the biggest room, ropes, broken pews,
+  rubble; Sanctum: chandeliers, candelabras, candles.
+- Two more generated materials: `MAT_POTION` (emissive green) and `MAT_MIRROR`.

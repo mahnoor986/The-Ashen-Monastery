@@ -171,6 +171,7 @@ bool Game_LoadWing(Game *g, int wing)
     if (g->worldLoaded) World_Unload(&g->world);
     g->worldLoaded = false;
     if (!World_Load(&g->world, WINGS[wing].file, WINGS[wing].chests, true)) return false;
+    g->world.theme = wing;
     World_BuildMeshes(&g->world);
     g->worldLoaded = true;
     g->wing = wing;
@@ -253,6 +254,7 @@ bool Game_LoadSanctum(Game *g)
     if (g->worldLoaded) World_Unload(&g->world);
     g->worldLoaded = false;
     if (!World_Load(&g->world, SANCTUM_FILE, 0, false)) return false;
+    g->world.theme = WING_COUNT;
     World_BuildMeshes(&g->world);
     g->worldLoaded = true;
     g->sanctum = true;
@@ -1490,7 +1492,7 @@ int Game_Autotest(Game *g)
     Game_Draw(g);
     Screen_Save("shots/intro.png");
 
-    printf("\n%-6s %-34s %6s %6s %8s %6s %7s %7s\n", "wing", "name", "cells", "chunks", "vertices", "chests", "enemies", "torches");
+    printf("\n%-6s %-24s %6s %6s %8s %6s %7s %6s %6s\n", "wing", "name", "cells", "chunks", "vertices", "chests", "enemies", "lights", "props");
     for (i = 0; i < WING_COUNT; i++) {
         if (!FileExists(WINGS[i].file)) {
             printf("%-6d MISSING %s\n", i + 1, WINGS[i].file);
@@ -1509,9 +1511,9 @@ int Game_Autotest(Game *g)
         for (f = 0; f < AUTOTEST_FRAMES; f++) Frame(g, &none, dt, true);
         frameMs = (GetTime() - t0) * 1000.0 / AUTOTEST_FRAMES;
         if (!Screen_Save(TextFormat("shots/wing%d.png", i + 1))) failures++;
-        printf("%-6d %-34s %6d %6d %8d %6d %7d %7d   %.1f ms/frame\n", i + 1, g->world.name, g->world.w * g->world.h,
+        printf("%-6d %-24s %6d %6d %8d %6d %7d %6d %6d   %.1f ms/frame\n", i + 1, g->world.name, g->world.w * g->world.h,
                g->world.chunkCount, g->world.vertexCount, g->world.chestCount, g->world.spawnCount,
-               g->world.torchCount, frameMs);
+               g->world.torchCount, g->world.propCount, frameMs);
         g->player.god = false;
     }
 

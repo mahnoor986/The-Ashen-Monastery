@@ -11,20 +11,13 @@
  * Light from the wall sconces is baked into the vertex colours. */
 #include <string.h>
 #include <math.h>
-#include "world.h"
-#include "meshgen.h"
-#include "textures.h"
+#include "geo.h"
 #include "raymath.h"
 
 static const int DX[4] = { 1, -1, 0, 0 };
 static const int DZ[4] = { 0, 0, 1, -1 };
 
 /* ============================================================ geometry builder */
-
-typedef struct {
-    MeshBuilder mb[MAT_COUNT];
-    World *w;
-} Geo;
 
 static bool InBounds(const World *w, int x, int z) { return x >= 0 && z >= 0 && x < w->w && z < w->h; }
 static bool IsOpen(const World *w, int x, int z) { return InBounds(w, x, z) && w->area[z][x] != AREA_SOLID; }
@@ -133,6 +126,78 @@ static void Prism(Geo *g, int mat, float cx, float cz, float r, float y0, float 
         for (j = 0; j < rows; j++) {
             float ya = y0 + (y1 - y0) * j / rows, yb = y0 + (y1 - y0) * (j + 1) / rows;
             Quad(g, mat, (Vector3){ p1.x, ya, p1.z }, (Vector3){ p0.x, ya, p0.z }, (Vector3){ p0.x, yb, p0.z }, (Vector3){ p1.x, yb, p1.z });
+        }
+    }
+}
+
+/* ---- exported builder API (geo.h) ---- */
+
+void Geo_Quad(Geo *g, int mat, Vector3 a, Vector3 b, Vector3 c, Vector3 d) { Quad(g, mat, a, b, c, d); }
+void Geo_Quad2(Geo *g, int mat, Vector3 a, Vector3 b, Vector3 c, Vector3 d) { Quad2(g, mat, a, b, c, d); }
+void Geo_Box(Geo *g, int mat, Vector3 mn, Vector3 mx) { Box(g, mat, mn, mx); }
+
+void Geo_QuadUV(Geo *g, int mat, const Vector3 p[4], const Vector2 uv[4], bool twoSided)
+{
+    Vector3 n = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(p[1], p[0]), Vector3Subtract(p[3], p[0])));
+    Color l[4];
+    int k;
+    for (k = 0; k < 4; k++) l[k] = LightAt(g->w, Vector3Add(p[k], Vector3Scale(n, 0.05f)));
+    MB_Quad(&g->mb[mat], p, uv, l);
+    if (twoSided) {
+        Vector3 q[4] = { p[3], p[2], p[1], p[0] };
+        Vector2 v[4] = { uv[3], uv[2], uv[1], uv[0] };
+        Color m[4] = { l[3], l[2], l[1], l[0] };
+        MB_Quad(&g->mb[mat], q, v, m);
+    }
+}
+
+Vector3 Frame_Point(Frame f, float x, float y, float z)
+{
+    float c = cosf(f.yaw), s = sinf(f.yaw);
+    return (Vector3){ f.o.x + x * c + z * s, f.o.y + y, f.o.z - x * s + z * c };
+}
+
+void Geo_OBox(Geo *g, int mat, Vector3 center, float yaw, Vector3 h)
+{
+    Frame f = { center, yaw };
+    Vector3 p[8];
+    int i;
+    for (i = 0; i < 8; i++)
+        p[i] = Frame_Point(f, (i & 1) ? h.x : -h.x, (i & 2) ? h.y : -h.y, (i & 4) ? h.z : -h.z);
+    /* corners: bit0 = +x, bit1 = +y, bit2 = +z */
+    Quad(g, mat, p[2], p[6], p[7], p[3]);    /* top    (+y) */
+    Quad(g, mat, p[0], p[1], p[5], p[4]);    /* bottom (-y) */
+    Quad(g, mat, p[1], p[3], p[7], p[5]);    /* +x */
+    Quad(g, mat, p[4], p[6], p[2], p[0]);    /* -x */
+    Quad(g, mat, p[5], p[7], p[6], p[4]);    /* +z */
+    Quad(g, mat, p[0], p[2], p[3], p[1]);    /* -z */
+}
+
+void Geo_FBox(Geo *g, int mat, Frame f, float x, float y, float z, float hx, float hy, float hz)
+{
+    Geo_OBox(g, mat, Frame_Point(f, x, y, z), f.yaw, (Vector3){ hx, hy, hz });
+}
+
+void Geo_Lathe(Geo *g, int mat, Vector3 base, const float *r, const float *y, int rings, int sides, bool capTop)
+{
+    int k, i;
+    for (k = 0; k + 1 < rings; k++) {
+        for (i = 0; i < sides; i++) {
+            float a0 = 2.0f * PI * i / sides, a1 = 2.0f * PI * (i + 1) / sides;
+            Vector3 p00 = { base.x + cosf(a0) * r[k], base.y + y[k], base.z + sinf(a0) * r[k] };
+            Vector3 p01 = { base.x + cosf(a1) * r[k], base.y + y[k], base.z + sinf(a1) * r[k] };
+            Vector3 p10 = { base.x + cosf(a0) * r[k + 1], base.y + y[k + 1], base.z + sinf(a0) * r[k + 1] };
+            Vector3 p11 = { base.x + cosf(a1) * r[k + 1], base.y + y[k + 1], base.z + sinf(a1) * r[k + 1] };
+            Quad(g, mat, p01, p00, p10, p11);
+        }
+    }
+    if (capTop && rings > 0) {
+        Vector3 c = { base.x, base.y + y[rings - 1], base.z };
+        for (i = 0; i < sides; i++) {
+            float a0 = 2.0f * PI * i / sides, a1 = 2.0f * PI * (i + 1) / sides;
+            Vector3 p0 = { base.x + cosf(a0) * r[rings - 1], c.y, base.z + sinf(a0) * r[rings - 1] };
+            Vector3 p1 = { base.x + cosf(a1) * r[rings - 1], c.y, base.z + sinf(a1) * r[rings - 1] };
+            Quad(g, mat, p1, p0, c, c);
         }
     }
 }
@@ -651,6 +716,7 @@ static void CollectTorches(World *w)
 {
     int x, z, d;
     w->torchCount = 0;
+    w->flameCount = 0;
     for (z = 0; z < w->h; z++) {
         for (x = 0; x < w->w; x++) {
             if (w->grid[z][x] != 'T') continue;
@@ -659,7 +725,10 @@ static void CollectTorches(World *w)
                 if (!IsOpen(w, nx, nz) || w->grid[nz][nx] == 'E' || w->torchCount >= MAX_TORCHES) continue;
                 w->torches[w->torchCount].pos = TorchFlame(x, z, d);
                 w->torches[w->torchCount].normal = (Vector3){ (float)DX[d], 0.0f, (float)DZ[d] };
+                w->torches[w->torchCount].color = (Vector3){ TORCH_COLOR_R, TORCH_COLOR_G, TORCH_COLOR_B };
+                w->torches[w->torchCount].radius = TORCH_RADIUS;
                 w->torchCount++;
+                World_AddFlame(w, TorchFlame(x, z, d), 1.0f);
             }
         }
     }
@@ -726,6 +795,7 @@ static void BuildGlobal(Geo *g)
         if (r->x1 - r->x0 + 1 >= VAULT_MIN_ROOM && r->z1 - r->z0 + 1 >= VAULT_MIN_ROOM) VaultRibs(g, r, i + 1);
     }
     CornerTrims(g);
+    Props_Build(g);
 }
 
 static void FlushParts(Geo *g, World *w)
@@ -756,8 +826,11 @@ void World_BuildMeshes(World *w)
     w->vertexCount = 0;
     memset(lightCache, 0, sizeof(lightCache));
     CollectTorches(w);
+    w->propCount = 0;
+    w->colliderCount = 0;
     for (z = 0; z < w->h; z++)
         for (x = 0; x < w->w; x++) w->ceiling[z][x] = IsOpen(w, x, z) ? CellCeiling(w, x, z) : 0.0f;
+    Props_Place(w);                 /* before baking: candles and lanterns light the walls too */
     g.w = w;
     for (cz = 0; cz < ncz; cz++) {
         for (cx = 0; cx < ncx; cx++) {
