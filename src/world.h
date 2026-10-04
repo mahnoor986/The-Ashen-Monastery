@@ -53,5 +53,7 @@ bool World_IsWallCell(const World *w, int x, int z);       /* full-height wall b
 void World_Move(const World *w, Vector3 *pos, float size, Vector3 delta);
 bool World_BoxBlocked(const World *w, float cx, float cz, float size);
 bool World_LineOfSight(const World *w, Vector3 a, Vector3 b);
+/* Baked torch light (0..1 rgb) arriving at point p; also used to light characters. */
+Vector3 World_LightAt(const World *w, Vector3 p);
 
 #endif

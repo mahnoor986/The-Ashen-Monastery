@@ -15,7 +15,7 @@
 #define COL_BONE        (Color){ 226, 220, 200, 255 }   /* bone white: body text */
 #define COL_BLOOD       (Color){ 150,  18,  28, 255 }   /* blood red: danger, titles */
 #define COL_GOLD        (Color){ 232, 184,  88, 255 }   /* candle gold: highlights, treasures */
-#define COL_NEARBLACK   (Color){   5,   5,   9, 255 }   /* background / fog */
+#define COL_NEARBLACK   (Color){   5,   5,   9, 255 }   /* background / fog (matches FOG_COLOR) */
 
 /* ----------------------------------------------------------------- fonts */
 #define FONT_DIR        "assets/fonts"            /* searched recursively for the files below */
@@ -36,6 +36,17 @@
 #define MAX_SPAWNS      64
 #define TORCH_HEIGHT    2.3f            /* flame height above the floor */
 #define TORCH_RADIUS    7.0f            /* how far baked torch light reaches */
+#define TORCH_INTENSITY 1.7f            /* brightness of one torch right next to it */
+#define TORCH_COLOR_R   1.00f           /* warm orange torch light */
+#define TORCH_COLOR_G   0.55f
+#define TORCH_COLOR_B   0.30f
+#define FOG_COLOR_R     0.02f           /* fog fades to this near-black */
+#define FOG_COLOR_G     0.02f
+#define FOG_COLOR_B     0.035f
+#define PLAYER_LIGHT_R  0.55f           /* soft warm light carried by the player */
+#define PLAYER_LIGHT_G  0.45f
+#define PLAYER_LIGHT_B  0.36f
+#define PLAYER_LIGHT_HEIGHT 1.7f        /* light sits above the player's head */
 
 /* ---------------------------------------------------------------- camera */
 #define CAM_FOVY            62.0f       /* vertical field of view in degrees */

@@ -298,11 +298,43 @@ bool World_Load(World *w, const char *path, int expectedChests)
 
 /* ------------------------------------------------------------ meshes */
 
-/* Light arriving at a vertex. Phase 1: flat white light. */
+/* Is the straight path from a torch to point p free of walls? The last bit near p is skipped,
+ * because vertices sit exactly on cell borders (next to their own wall). */
+static bool TorchReaches(const World *w, Vector3 from, Vector3 p)
+{
+    float dx = p.x - from.x, dz = p.z - from.z, len = sqrtf(dx * dx + dz * dz), t;
+    for (t = 0.25f; t < len - 0.35f; t += 0.25f) {
+        float k = t / len;
+        if (World_IsWallCell(w, (int)floorf(from.x + dx * k), (int)floorf(from.z + dz * k))) return false;
+    }
+    return true;
+}
+
+Vector3 World_LightAt(const World *w, Vector3 p)
+{
+    Vector3 sum = { 0 };
+    int i;
+    for (i = 0; i < w->torchCount; i++) {
+        float d = Vector3Distance(p, w->torches[i].pos), f;
+        if (d >= TORCH_RADIUS) continue;
+        if (!TorchReaches(w, w->torches[i].pos, p)) continue;
+        f = 1.0f - d / TORCH_RADIUS;
+        f = f * f * f * TORCH_INTENSITY;      /* cubic falloff: bright pools, dark gaps */
+        sum.x += TORCH_COLOR_R * f;
+        sum.y += TORCH_COLOR_G * f;
+        sum.z += TORCH_COLOR_B * f;
+    }
+    sum.x = fminf(sum.x, 1.0f);
+    sum.y = fminf(sum.y, 1.0f);
+    sum.z = fminf(sum.z, 1.0f);
+    return sum;
+}
+
+/* Light arriving at a vertex, as a vertex color. */
 static Color LightAt(const World *w, Vector3 p)
 {
-    (void)w; (void)p;
-    return WHITE;
+    Vector3 l = World_LightAt(w, p);
+    return (Color){ (unsigned char)(l.x * 255.0f), (unsigned char)(l.y * 255.0f), (unsigned char)(l.z * 255.0f), 255 };
 }
 
 static void Face(MeshBuilder *mb, const World *w, Vector3 o, Vector3 a, Vector3 b, int tile)
@@ -324,7 +356,7 @@ static void OrientedBox(MeshBuilder *mb, const World *w, Vector3 c, Vector3 n, f
            tile, LightAt(w, c));
 }
 
-static void AddTorch(MeshBuilder *mb, World *w, int x, int z, int d)
+static void AddTorch(MeshBuilder *mb, const World *w, int x, int z, int d)
 {
     Vector3 n = { (float)DX[d], 0.0f, (float)DZ[d] };
     Vector3 wall = { x + 0.5f + n.x * 0.5f, TORCH_HEIGHT, z + 0.5f + n.z * 0.5f };
@@ -335,10 +367,30 @@ static void AddTorch(MeshBuilder *mb, World *w, int x, int z, int d)
     OrientedBox(mb, w, (Vector3){ wall.x + n.x * 0.09f, TORCH_HEIGHT - 0.32f, wall.z + n.z * 0.09f },
                 n, 0.07f, 0.03f, 0.03f, TILE_IRON);                          /* arm */
     OrientedBox(mb, w, stick, n, 0.045f, 0.045f, 0.17f, TILE_CEILING);      /* wooden handle */
-    if (w->torchCount < MAX_TORCHES) {
-        Torch *t = &w->torches[w->torchCount++];
-        t->pos = (Vector3){ stick.x, TORCH_HEIGHT, stick.z };
-        t->normal = n;
+}
+
+/* Flame position for a torch on wall cell (x,z) facing direction d. */
+static Vector3 TorchFlame(int x, int z, int d)
+{
+    return (Vector3){ x + 0.5f + DX[d] * 0.66f, TORCH_HEIGHT, z + 0.5f + DZ[d] * 0.66f };
+}
+
+/* Every face of a 'T' wall that touches open floor carries a torch. Collected before meshing
+ * so the baked light can use all of them. */
+static void CollectTorches(World *w)
+{
+    int x, z, d;
+    for (z = 0; z < w->h; z++) {
+        for (x = 0; x < w->w; x++) {
+            if (w->grid[z][x] != 'T') continue;
+            for (d = 0; d < 4; d++) {
+                int nx = x + DX[d], nz = z + DZ[d];
+                if (!InBounds(w, nx, nz) || IsWallChar(w->grid[nz][nx]) || w->torchCount >= MAX_TORCHES) continue;
+                w->torches[w->torchCount].pos = TorchFlame(x, z, d);
+                w->torches[w->torchCount].normal = (Vector3){ (float)DX[d], 0.0f, (float)DZ[d] };
+                w->torchCount++;
+            }
+        }
     }
 }
 
@@ -363,7 +415,7 @@ static void AddBones(MeshBuilder *mb, const World *w, int x, int z)
     }
 }
 
-static void BuildChunk(MeshBuilder *mb, World *w, int cx, int cz)
+static void BuildChunk(MeshBuilder *mb, const World *w, int cx, int cz)
 {
     int x, z, d, k;
     for (z = cz * CHUNK_SIZE; z < (cz + 1) * CHUNK_SIZE && z < w->h; z++) {
@@ -402,6 +454,7 @@ void World_BuildMeshes(World *w)
     w->torchCount = 0;
     w->chunkCount = 0;
     w->vertexCount = 0;
+    CollectTorches(w);
     for (cz = 0; cz < ncz; cz++) {
         for (cx = 0; cx < ncx; cx++) {
             Mesh m;

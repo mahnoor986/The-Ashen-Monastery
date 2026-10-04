@@ -22,6 +22,10 @@ void MB_Box(MeshBuilder *mb, Vector3 min, Vector3 max, int tile, Color light);
  * Returns a mesh with vertexCount 0 if nothing was added. */
 Mesh MB_End(MeshBuilder *mb);
 
+/* true (default): vertex color = baked light + shade in alpha, for the world shader.
+ * false: bake a plain look for raylib's default shader (used if the shader fails to load). */
+void MB_SetShaderEncoding(bool on);
+
 /* Brightness of a face by its outward normal. */
 float MB_FaceShade(Vector3 n);
 

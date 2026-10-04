@@ -1,5 +1,6 @@
 /* meshgen.c - CPU mesh builder for blocky geometry (see meshgen.h). */
 #include <string.h>
+#include <math.h>
 #include "meshgen.h"
 #include "textures.h"
 #include "raymath.h"
@@ -31,11 +32,21 @@ float MB_FaceShade(Vector3 n)
 }
 
 /* How light + face shade are stored in the vertex color.
- * Phase 1 (raylib default shader): rgb = light * shade, alpha = 255. */
+ * With the world shader: rgb = baked torch light, alpha = face shade (the shader adds ambient).
+ * Without it (shader failed to load): rgb = (some ambient + light) * shade, alpha = 255. */
+static bool shaderEncoding = true;
+
+void MB_SetShaderEncoding(bool on)
+{
+    shaderEncoding = on;
+}
+
 static Color Encode(Color light, float shade)
 {
-    return (Color){ (unsigned char)(light.r * shade), (unsigned char)(light.g * shade),
-                    (unsigned char)(light.b * shade), 255 };
+    if (shaderEncoding) return (Color){ light.r, light.g, light.b, (unsigned char)(255 * shade) };
+    return (Color){ (unsigned char)fminf(255.0f, (90.0f + light.r) * shade),
+                    (unsigned char)fminf(255.0f, (90.0f + light.g) * shade),
+                    (unsigned char)fminf(255.0f, (90.0f + light.b) * shade), 255 };
 }
 
 static void PushVertex(MeshBuilder *mb, Vector3 p, float u, float v, Vector3 n, Color c)

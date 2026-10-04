@@ -48,3 +48,13 @@ Decisions made while building, and things worth knowing.
   clicking the window captures it again (Esc becomes Pause in phase 3).
 - Wing maps are hand-designed; I laid them out with a throwaway Python script (rectangles),
   but the `.txt` files are the source of truth and can be edited by hand.
+
+## Phase 2 decisions
+- Vertex color = baked torch light (rgb) + face shade (alpha); the shader adds ambient and
+  the player light, multiplies by shade, then fogs. If the shader files fail to load, meshes
+  are baked with a plain look for raylib's default shader instead (`MB_SetShaderEncoding`).
+- Torch light uses a cubic falloff (`TORCH_INTENSITY` 1.7) so torches make distinct pools.
+  It is blocked by walls (grid ray march), so light doesn't leak into neighbouring rooms.
+- Characters and doors have no baked light; the shader uses `entityLight` = the torch light
+  sampled at their position (`isEntity` uniform).
+- Torch flames are drawn unlit with raylib's default shader, so they glow through the fog.

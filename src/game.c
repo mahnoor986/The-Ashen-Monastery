@@ -21,6 +21,7 @@ void Game_Init(Game *g, int startWing, bool autotest)
     Textures_Init();
     Render_Init();
     Character_Init();
+    if (Render_HasShader()) Character_SetShader(Render_Shader());
     UI_Init();
 
     if (!autotest) {
@@ -88,8 +89,10 @@ void Game_Update(Game *g, float dt)
 void Game_Draw(Game *g)
 {
     ClearBackground(COL_NEARBLACK);
+    Render_BeginFrame(&WINGS[g->wing], g->rig.cam, g->player.pos, g->time);
     BeginMode3D(g->rig.cam);
     Render_DrawWorld(&g->world, g->time);
+    Render_UseEntityLight(World_LightAt(&g->world, Vector3Add(g->player.pos, (Vector3){ 0, 1.0f, 0 })));
     Player_Draw(&g->player);
     EndMode3D();
     UI_DrawHUD(g);
@@ -123,8 +126,10 @@ static void DrawKnightCloseup(Game *g)
     cam.projection = CAMERA_PERSPECTIVE;
 
     ClearBackground(COL_NEARBLACK);
+    Render_BeginFrame(&WINGS[g->wing], cam, base, g->time);
     BeginMode3D(cam);
     Render_DrawWorld(&g->world, g->time);
+    Render_UseEntityLight(World_LightAt(&g->world, Vector3Add(base, (Vector3){ 0, 1.0f, 0 })));
     Character_DrawKnight(&walk);
     Character_DrawKnight(&swing);
     EndMode3D();

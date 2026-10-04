@@ -26,6 +26,7 @@ void Character_Shutdown(void)
 {
     UnloadMesh(cube);
     material.maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ 0 };   /* the atlas is owned by textures.c */
+    material.shader = (Shader){ 0 };                                  /* the shader is owned by render.c */
     UnloadMaterial(material);
 }
 
