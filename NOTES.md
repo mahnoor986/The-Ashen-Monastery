@@ -436,3 +436,13 @@ Decisions made while building, and things worth knowing.
 - Autotest: wing 1 relic before the exit; the whole Bell Tower sequence (sealed cage ignores hits
   -> crown -> cage -> serpent -> mortal Abbot -> summon -> exit -> Sanctum); `shots/relics.png`
   and `shots/cage.png` from a free camera.
+
+## Item 14 - The Sanctum ending
+- Already in place from the Ashen upgrade and now on the new systems: the hall is built by the
+  architecture (pillars as columns, ribbed vault, carpet with gold edges) with the Sanctum theme
+  (three ring chandeliers, candelabras, floor candles, banners), warm gold mood (fog, ambient,
+  grade mode 1), no ash, tolls or lightning, calm ambience. Master Oren (grey robe, cone beard,
+  glowing staff), Ilsa / Tobin / Mira (blue / brown / green) and six freed monks in light grey
+  (a little darker now, they glowed too white). Friends' lines within 2 units, Oren's 4-line
+  dialogue, fade to "THE BELLS ARE SILENT" with seals, relics, enemies, time and short credits;
+  Enter returns to the title.

@@ -350,7 +350,7 @@ bool Game_LoadSanctum(Game *g)
             n->robe = apprenticeRobes[apprentices];
             apprentices++;
         } else {
-            n->robe = (Color){ 178, 176, 170, 255 };      /* a freed monk in light grey */
+            n->robe = (Color){ 150, 148, 142, 255 };      /* a freed monk in light grey */
         }
         n->yaw = n->pos.x < midX ? PI * 0.5f : -PI * 0.5f;   /* monks face the carpet */
     }
