@@ -3,7 +3,7 @@
 #   make            debug build -> AshenMonastery.exe
 #   make run        build and run
 #   make autotest   build and run the screenshot self-test (writes shots/*.png)
-#   make release    optimized build, no console window
+#   make release    optimized build + self-contained Windows ZIP in dist/
 #   make clean
 #
 # Raylib 6.0 layout:
@@ -45,6 +45,7 @@ autotest: $(TARGET)
 
 release: clean
 	"$(MAKE)" CFLAGS='-std=c99 -Wall -Wextra -Wno-unused-parameter -O2 -Isrc -I"$(RAYLIB_PATH)/include"' LDLIBS="-lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -s"
+	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 
 clean:
 	rm -rf build $(TARGET)

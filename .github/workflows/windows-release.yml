@@ -1,0 +1,51 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+
+      - name: Install MinGW build tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc make
+
+      - name: Download raylib 6.0
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "raylib-6.0.zip"
+          $raylibRoot = Join-Path $env:RUNNER_TEMP "raylib"
+          Invoke-WebRequest `
+            -Uri "https://github.com/raysan5/raylib/releases/download/6.0/raylib-6.0_win64_mingw-w64.zip" `
+            -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $raylibRoot
+          $raylibHeader = Get-ChildItem $raylibRoot -Filter "raylib.h" -File -Recurse | Select-Object -First 1
+          if (-not $raylibHeader) {
+            throw "The raylib archive did not contain raylib.h."
+          }
+          $raylibPath = (Split-Path -Parent (Split-Path -Parent $raylibHeader.FullName)) -replace '\\', '/'
+          if (-not (Test-Path "$raylibPath/lib/libraylib.a")) {
+            throw "The raylib archive did not contain lib/libraylib.a."
+          }
+          "RAYLIB_PATH=$raylibPath" >> $env:GITHUB_ENV
+
+      - name: Build and package
+        shell: msys2 {0}
+        run: make release RAYLIB_PATH="$RAYLIB_PATH"
+
+      - name: Publish ZIP on GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AshenMonastery_Windows.zip

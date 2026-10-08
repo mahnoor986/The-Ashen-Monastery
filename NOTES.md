@@ -454,7 +454,9 @@ Decisions made while building, and things worth knowing.
   Enter returns to the title.
 
 ## Item 15 - Wrap up
-- `make release` builds without warnings (fixed three -O2 "may be used uninitialized" in the tour);
+- `make release` builds without warnings and creates `dist/AshenMonastery_Windows.zip` with the
+  executable, complete `assets/` folder, README, credits and quick-start instructions. The
+  tag-triggered GitHub Actions workflow builds and attaches that same ZIP to each `v*` release;
   debug and release both pass `--autotest` (35 checks). README rewritten (story, how to play,
   controls, debug keys, wings, build steps, flags, file overview); CREDITS lists every Poly Haven
   asset by name, the fonts, the Kenney / OpenGameArt sounds and everything made in code.

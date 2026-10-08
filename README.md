@@ -26,6 +26,11 @@ No installation, no code, no commands.
 3. Open the extracted folder and double-click **`AshenMonastery.exe`**.
 4. If Windows shows **"Windows protected your PC"**, click **More info → Run anyway**.
    This appears for any game that isn't signed by a big publisher.
+   To avoid the message completely: before extracting, right-click the zip → **Properties** →
+   tick **Unblock** → **OK**, then extract.
+
+The ZIP contains the executable and its complete `assets` folder. Keep them together in the
+extracted folder; do not move the EXE out on its own.
 
 Requirements: Windows 10 or 11, any graphics card from the last ~10 years (OpenGL 3.3).
 
@@ -119,7 +124,7 @@ cd the-ashen-monastery
 make                 # debug build -> AshenMonastery.exe
 make run             # build and run
 make autotest        # build and run the self-test (screenshots in shots/)
-make release         # optimized build without a console window
+make release         # optimized build + dist/AshenMonastery_Windows.zip
 make clean
 ```
 
@@ -127,6 +132,9 @@ The Makefile expects raylib at `C:/Users/HP GM/Downloads/raylib-6.0_win64_mingw-
 elsewhere: `make RAYLIB_PATH="D:/path/to/raylib-6.0_win64_mingw-w64"`. Put w64devkit's `bin` first on
 PATH. No make? Run `build.bat` (edit the two paths at its top). In VS Code, **Ctrl+Shift+B** builds
 and **F5** starts the debugger.
+
+Pushing a version tag such as `v1.0.1` also runs the Windows release workflow, builds this
+self-contained ZIP and attaches it to that GitHub Release.
 
 Command-line options:
 
